@@ -15,6 +15,8 @@ import { TriangleAlert } from 'lucide-react'
 import { useCallback, useEffect, useMemo } from 'react'
 
 import { useTheme } from '@/components/theme/theme-provider'
+// Colaboración: cursores y selección de los demás; rol "Solo lectura".
+import { RemoteCursors, useIsReadOnly } from '@/features/collab'
 import { useProjectStore } from '@/store/project'
 import type { Position } from '@/types/schema'
 
@@ -27,6 +29,9 @@ import { FunctionNode, TableNode, TriggerNode, ViewNode } from './nodes'
 const nodeTypes = { table: TableNode, trigger: TriggerNode, fn: FunctionNode, view: ViewNode }
 
 const kindOf = (nodeId: string) => nodeId.slice(0, 1) as 't' | 'g' | 'f' | 'v'
+// Colaboración: selección del awareness ({ kind, id }) → id del nodo en este lienzo.
+const PREFIX: Record<string, string> = { table: 't', trigger: 'g', function: 'f', view: 'v' }
+const presenceNodeId = (sel: { kind: string; id: string }) => (PREFIX[sel.kind] ? `${PREFIX[sel.kind]}:${sel.id}` : null)
 const idOf = (nodeId: string) => nodeId.slice(2)
 
 export function TriggerCanvas({ onSimulate }: { onSimulate: () => void }) {
@@ -42,6 +47,7 @@ export function TriggerCanvas({ onSimulate }: { onSimulate: () => void }) {
   const hl = useSimHighlight()
   const { resolved } = useTheme()
   const menu = useCanvasMenu(onSimulate)
+  const readOnly = useIsReadOnly()
 
   const flow = useMemo(() => buildFlow(draft, tablePositions, onlyInvolved, selection), [draft, tablePositions, onlyInvolved, selection])
   const cycles = useMemo(() => findCycles(draft), [draft])
@@ -189,7 +195,9 @@ export function TriggerCanvas({ onSimulate }: { onSimulate: () => void }) {
       onConnect={onConnect}
       isValidConnection={isValidConnection}
       onNodesDelete={onNodesDelete}
-      deleteKeyCode={['Backspace', 'Delete']}
+      deleteKeyCode={readOnly ? null : ['Backspace', 'Delete']}
+      nodesDraggable={!readOnly}
+      nodesConnectable={!readOnly}
       defaultEdgeOptions={{
         labelStyle: { fontSize: 10, fill: 'var(--muted-foreground)' },
         labelBgStyle: { fill: 'var(--canvas)' },
@@ -203,6 +211,8 @@ export function TriggerCanvas({ onSimulate }: { onSimulate: () => void }) {
       className="triggers-canvas bg-canvas [&_.react-flow__edge-path]:transition-[stroke,stroke-width,opacity] [&_.react-flow__edge-path]:duration-300 [&_.react-flow__edge-path]:ease-out motion-reduce:[&_.react-flow__edge-path]:transition-none"
     >
       {menu.element}
+      {/* Colaboración: cursores remotos y nodos que tienen seleccionados o editando. */}
+      <RemoteCursors nodeIdFor={presenceNodeId} />
       <Background variant={BackgroundVariant.Dots} gap={20} size={1} color="var(--canvas-dot)" bgColor="var(--canvas)" />
       <Controls showInteractive={false} position="bottom-left" />
       {cycles.length > 0 && (

@@ -1,7 +1,7 @@
 // Edición en línea (popover sobre el nodo) de triggers, funciones y vistas.
 import { useId, type ReactNode, type SyntheticEvent } from 'react'
 
-import { CodeEditor } from '@/components/code'
+import { SharedCodeEditor } from '@/components/code/shared-code-editor'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -181,7 +181,8 @@ export function FunctionQuickEdit({ fn }: { fn: DbFunction }) {
         </Row>
       </div>
       <Row label="Cuerpo" htmlFor={`${id}-b`}>
-        <CodeEditor
+        <SharedCodeEditor
+            shared={{ kind: 'function-body', id: fn.id }}
           value={fn.body}
           onChange={(body) => update({ body })}
           language="pgsql"
@@ -217,7 +218,8 @@ export function ViewQuickEdit({ view }: { view: View }) {
         <Switch id={`${id}-m`} checked={view.materialized} onCheckedChange={(materialized) => update({ materialized })} />
       </label>
       <Row label="Definición (SELECT)" htmlFor={`${id}-d`}>
-        <CodeEditor
+        <SharedCodeEditor
+            shared={{ kind: 'view-definition', id: view.id }}
           value={view.definition}
           onChange={(definition) => update({ definition })}
           language="pgsql"

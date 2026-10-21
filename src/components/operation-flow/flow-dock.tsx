@@ -1,6 +1,8 @@
 import { ChevronUp } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
 
+// Colaboración: pestaña "Actividad" (entradas, salidas y cambios de rol de la sesión).
+import { ActivityPanel, useActivityCount, useIsCollaborating } from '@/features/collab'
 import { LiveChanges } from '@/features/versions/live-changes'
 import { diffSchemas } from '@/lib/diff'
 import { cn } from '@/lib/utils'
@@ -9,7 +11,7 @@ import { emptySchema, useProjectStore } from '@/store/project'
 import { FlowSteps } from './flow-steps'
 import { useOperationStore, type Operation } from './store'
 
-type Tab = 'live' | 'ops'
+type Tab = 'live' | 'ops' | 'activity'
 const KEY = 'db-tracker:flow-dock'
 
 const readOpen = () => {
@@ -37,6 +39,9 @@ export function FlowDock() {
   const draft = useProjectStore((s) => s.draft)
   const base = useProjectStore((s) => (s.baseVersionId ? s.project.versions.find((v) => v.id === s.baseVersionId)?.schema : undefined))
   const dialect = useProjectStore((s) => s.project.dialect)
+  const collaborating = useIsCollaborating()
+  const activityCount = useActivityCount()
+  const showActivity = collaborating || activityCount > 0
   const jumps = useMemo(() => diffSchemas(base ?? emptySchema(dialect), draft).jumps, [base, draft, dialect])
 
   const change = (next: boolean) => {
@@ -86,6 +91,7 @@ export function FlowDock() {
           'Operaciones',
           focused ? (focused.status === 'running' ? 'en curso' : focused.status === 'error' ? 'con error' : `${operations.length}`) : '0',
         )}
+        {showActivity && tabButton('activity', 'Actividad', `${activityCount}`)}
         {focused?.status === 'running' && <span className="size-1.5 animate-pulse rounded-full bg-brand" aria-hidden="true" />}
         <button
           type="button"
@@ -106,7 +112,11 @@ export function FlowDock() {
       >
         <div className="min-h-0 overflow-hidden" inert={!open}>
           <div className="h-52 border-t">
-            {tab === 'live' ? (
+            {tab === 'activity' && showActivity ? (
+              <div key="activity" className="h-full animate-in overflow-auto fade-in duration-200">
+                <ActivityPanel />
+              </div>
+            ) : tab === 'live' || tab === 'activity' ? (
               <div key="live" className="h-full animate-in overflow-auto fade-in duration-200">
                 <LiveChanges />
               </div>

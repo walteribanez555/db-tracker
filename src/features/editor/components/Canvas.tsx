@@ -15,6 +15,8 @@ import { useEffect, useRef } from 'react'
 
 import { ActionMenu } from '@/components/flow/action-menu'
 import { useTheme } from '@/components/theme/theme-provider'
+// Colaboración: cursores y selección de los demás; rol "Solo lectura".
+import { RemoteCursors, useIsReadOnly } from '@/features/collab'
 import { useProjectStore } from '@/store/project'
 
 import { LinkEdge } from '../edges/LinkEdge'
@@ -68,7 +70,8 @@ export function Canvas() {
   const menu = useEditorMenu()
   const { resolved } = useTheme()
   const [minimapOpen, toggleMinimap] = useMinimapPreference()
-  const editable = tool === 'select'
+  const readOnly = useIsReadOnly()
+  const editable = tool === 'select' && !readOnly
 
   return (
     <div data-editor-canvas className="relative min-w-0 flex-1 bg-canvas" onContextMenu={(e) => e.preventDefault()}>
@@ -117,10 +120,15 @@ export function Canvas() {
             className="opacity-60 transition-opacity duration-200 ease-out hover:opacity-100"
           />
         )}
+        {/* Colaboración: cursores remotos y nodos que tienen seleccionados o editando. */}
+        <RemoteCursors />
       </ReactFlow>
 
       <MinimapToggle open={minimapOpen} onToggle={toggleMinimap} />
-      <Toolbar />
+      {/* Colaboración: en solo lectura la barra queda visible pero inactiva. */}
+      <div inert={readOnly} className={readOnly ? 'contents [&>*]:opacity-50' : 'contents'}>
+        <Toolbar />
+      </div>
       {isEmpty && <EmptyState onCreate={addTable} />}
       <NewRelationDialog />
       <TriggerModalHost />

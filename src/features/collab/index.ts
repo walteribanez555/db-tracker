@@ -1,0 +1,11 @@
+// Interfaz de la colaboración en red. El cliente de sincronización vive en src/collab.
+export { collabApi, CollabApiError } from './api'
+export { useActivityCount } from './activity'
+export { ActivityPanel } from './components/ActivityPanel'
+export { CollabBanner } from './components/CollabBanner'
+export { CollabHeader } from './components/CollabHeader'
+export { JoinDialog } from './components/JoinDialog'
+export { ShareDialog } from './components/ShareDialog'
+export { useIsCollaborating, useIsReadOnly, usePeersHere } from './hooks'
+export { JoinPage } from './pages/JoinPage'
+export { RemoteCursors } from './presence/RemoteCursors'

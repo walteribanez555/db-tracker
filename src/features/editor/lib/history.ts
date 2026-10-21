@@ -1,5 +1,6 @@
 import { create } from 'zustand'
 
+import { getCollabUndo } from '@/collab/undo-bridge'
 import { useProjectStore } from '@/store/project'
 import type { Schema } from '@/types/schema'
 
@@ -21,6 +22,8 @@ let batch: { pushed: boolean } | null = null
 
 useProjectStore.subscribe((state, prev) => {
   if (state.draft === prev.draft || applying) return
+  // En sesión colaborativa el historial lo lleva el UndoManager de Yjs (solo cambios propios).
+  if (getCollabUndo()) return
 
   const switched =
     state.project.id !== prev.project.id ||
@@ -62,6 +65,8 @@ const apply = (schema: Schema) => {
 }
 
 export function undo() {
+  const collab = getCollabUndo()
+  if (collab) return collab.undo()
   const { past, future } = useHistoryStore.getState()
   const previous = past.at(-1)
   if (!previous) return
@@ -71,6 +76,8 @@ export function undo() {
 }
 
 export function redo() {
+  const collab = getCollabUndo()
+  if (collab) return collab.redo()
   const { past, future } = useHistoryStore.getState()
   const next = future.at(-1)
   if (!next) return

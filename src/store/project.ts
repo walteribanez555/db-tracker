@@ -159,6 +159,17 @@ const headSchema = (project: Project, branchId: string): { schema: Schema; versi
   return { schema: emptySchema(project.dialect), versionId: null }
 }
 
+/**
+ * Gancho de la colaboración en red (src/collab/binding.ts): con sesión activa, checkoutBranch carga el
+ * borrador COMPARTIDO de la rama en un solo `set` (sin él se cargaría la cabeza y luego el borrador remoto,
+ * con dos renders y una entrada falsa en deshacer). Devuelve null si la rama aún no tiene borrador compartido.
+ */
+type SharedDraftResolver = (branchId: string) => { schema: Schema; versionId: string | null } | null
+let sharedDraftResolver: SharedDraftResolver | null = null
+export const setSharedDraftResolver = (resolver: SharedDraftResolver | null) => {
+  sharedDraftResolver = resolver
+}
+
 const initial = createInitialProject()
 
 export const useProjectStore = create<ProjectState>()(
@@ -312,7 +323,7 @@ export const useProjectStore = create<ProjectState>()(
       },
       checkoutBranch: (branchId) => {
         const { project } = get()
-        const { schema, versionId } = headSchema(project, branchId)
+        const { schema, versionId } = sharedDraftResolver?.(branchId) ?? headSchema(project, branchId)
         set({ project: { ...project, currentBranchId: branchId }, draft: schema, baseVersionId: versionId, selection: null })
       },
       checkoutVersion: (versionId) => {

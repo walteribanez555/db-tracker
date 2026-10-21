@@ -1,7 +1,8 @@
 import { ScanSearch } from 'lucide-react'
 import { useId, useState } from 'react'
 
-import { CodeEditor, sqlLanguageFor } from '@/components/code'
+import { sqlLanguageFor } from '@/components/code'
+import { SharedCodeEditor } from '@/components/code/shared-code-editor'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -47,7 +48,8 @@ export function ViewSqlPanel({ viewId }: { viewId: string }) {
           onCheckedChange={(v) => discrete(() => updateView(view.id, { materialized: v }))}
         />
       </div>
-      <CodeEditor
+      <SharedCodeEditor
+            shared={{ kind: 'view-definition', id: view.id }}
         className="nokey"
         value={view.definition}
         onChange={(definition) => updateView(view.id, { definition })}

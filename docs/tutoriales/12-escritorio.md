@@ -1,8 +1,8 @@
-# 12. Aplicación de escritorio (en pausa)
+# 12. Aplicación de escritorio
 
 [← Volver al README](../../README.md)
 
-> Por ahora el objetivo es la versión web. El código de escritorio está en el repositorio, pero no se mantiene activamente.
+> El escritorio es la forma natural de **ser anfitrión** de una sesión colaborativa: ver el [tutorial 13](13-colaboracion.md).
 
 La app de escritorio usa Electron y reutiliza la misma API (`server/app.ts`): el proceso principal la levanta en `127.0.0.1` con un puerto libre y la ventana carga el frontend desde ahí. Así, la conexión a bases remotas y a GitHub funciona sin un servidor aparte.
 

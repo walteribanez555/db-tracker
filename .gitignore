@@ -30,3 +30,6 @@ release
 
 # Artefactos de pruebas de navegador
 .playwright-mcp
+
+# Datos locales del servidor web (salas de colaboración)
+.dbtracker-data

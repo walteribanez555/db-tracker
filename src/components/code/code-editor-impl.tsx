@@ -1,11 +1,14 @@
 import { DiffEditor, Editor, type DiffOnMount, type OnMount } from '@monaco-editor/react'
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import type * as Y from 'yjs'
 
+import { getAwareness, useCollabStore, usePeers } from '@/collab'
 import { useTheme } from '@/components/theme/theme-provider'
 import { cn } from '@/lib/utils'
 
 import { loadMonaco, setCompletionSchema } from './monaco'
 import type { CodeDiffProps, CodeEditorProps } from './types'
+import { bindSharedText, loadMonacoWithYjs, remoteCursorCss } from './yjs-binding'
 
 const LANGUAGE_LABEL: Record<string, string> = {
   pgsql: 'PostgreSQL',
@@ -19,16 +22,33 @@ const LANGUAGE_LABEL: Record<string, string> = {
   plaintext: 'Texto',
 }
 
-function useMonacoReady() {
-  const [ready, setReady] = useState(false)
+function useMonacoReady(withYjs = false) {
+  const [ready, setReady] = useState<boolean | 'yjs'>(false)
   useEffect(() => {
     let alive = true
-    void loadMonaco().then(() => alive && setReady(true))
+    void (withYjs ? loadMonacoWithYjs() : loadMonaco()).then(() => alive && setReady(withYjs ? 'yjs' : true))
     return () => {
       alive = false
     }
-  }, [])
-  return ready
+  }, [withYjs])
+  return { ready: ready !== false, yjsReady: ready === 'yjs' }
+}
+
+type StandaloneEditor = Parameters<OnMount>[0]
+
+/** Enlace y-monaco del editor con el Y.Text compartido (y CSS de cursores remotos). */
+function useSharedTextBinding(editor: StandaloneEditor | null, sharedText: unknown, yjsReady: boolean) {
+  useEffect(() => {
+    if (!editor || !sharedText || !yjsReady) return
+    const binding = bindSharedText(sharedText as Y.Text, editor, getAwareness())
+    return () => binding?.destroy()
+  }, [editor, sharedText, yjsReady])
+}
+
+function RemoteCursorStyles() {
+  const peers = usePeers()
+  const css = useMemo(() => remoteCursorCss(peers), [peers])
+  return css ? <style>{css}</style> : null
 }
 
 const baseOptions = {
@@ -72,11 +92,17 @@ export default function CodeEditorImpl({
   className,
   actions,
   ariaLabel,
+  sharedText,
 }: CodeEditorProps) {
-  const ready = useMonacoReady()
+  const shared = sharedText != null
+  const { ready, yjsReady } = useMonacoReady(shared)
   const { resolved } = useTheme()
   const [contentHeight, setContentHeight] = useState(minHeight)
   const [cursor, setCursor] = useState({ line: 1, col: 1 })
+  const [editor, setEditor] = useState<StandaloneEditor | null>(null)
+  const collabReadOnly = useCollabStore((s) => s.readOnly)
+  if (shared && collabReadOnly) readOnly = true
+  useSharedTextBinding(editor, sharedText, yjsReady)
 
   useEffect(() => setCompletionSchema(schema), [schema])
 
@@ -84,12 +110,14 @@ export default function CodeEditorImpl({
   const editorHeight = auto ? Math.min(Math.max(contentHeight, minHeight), maxHeight) : height
   const lines = value.split('\n').length
 
-  const onMount: OnMount = (editor) => {
-    const update = () => setContentHeight(editor.getContentHeight())
+  const onMount: OnMount = (ed) => {
+    const update = () => setContentHeight(ed.getContentHeight())
     update()
-    editor.onDidContentSizeChange(update)
-    editor.onDidChangeCursorPosition((e) => setCursor({ line: e.position.lineNumber, col: e.position.column }))
-    editor.onDidFocusEditorText(() => setCompletionSchema(schema))
+    ed.onDidContentSizeChange(update)
+    ed.onDidChangeCursorPosition((e) => setCursor({ line: e.position.lineNumber, col: e.position.column }))
+    ed.onDidFocusEditorText(() => setCompletionSchema(schema))
+    ed.onDidDispose(() => setEditor(null))
+    setEditor(ed)
   }
 
   return (
@@ -106,10 +134,14 @@ export default function CodeEditorImpl({
           {actions && <div className="ml-auto flex items-center gap-1 px-2">{actions}</div>}
         </div>
       )}
-      {ready ? (
+      {shared && <RemoteCursorStyles />}
+      {ready && (!shared || yjsReady) ? (
         <Editor
-          value={value}
-          onChange={(v) => onChange?.(v ?? '')}
+          // Con texto compartido el contenido lo lleva y-monaco: editor no controlado y sin onChange
+          // (el store se actualiza desde el documento Yjs).
+          value={shared ? undefined : value}
+          defaultValue={shared ? value : undefined}
+          onChange={shared ? undefined : (v) => onChange?.(v ?? '')}
           language={language}
           theme={resolved === 'dark' ? 'dbt-dark' : 'dbt-light'}
           height={editorHeight}
@@ -155,7 +187,7 @@ export function CodeDiffImpl({
   modifiedLabel = 'Después',
   className,
 }: CodeDiffProps) {
-  const ready = useMonacoReady()
+  const { ready } = useMonacoReady()
   const { resolved } = useTheme()
   const diffRef = useRef<Parameters<DiffOnMount>[0] | null>(null)
 

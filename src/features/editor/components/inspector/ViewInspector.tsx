@@ -1,7 +1,8 @@
 import { ScanSearch } from 'lucide-react'
 import { useId, useState } from 'react'
 
-import { CodeEditor, sqlLanguageFor } from '@/components/code'
+import { sqlLanguageFor } from '@/components/code'
+import { SharedCodeEditor } from '@/components/code/shared-code-editor'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Input } from '@/components/ui/input'
@@ -75,7 +76,8 @@ export function ViewInspector({ view }: { view: View }) {
 
       <InspectorSection title="Definición SQL" id="view-sql">
         <Field label="Definición SQL">
-          <CodeEditor
+          <SharedCodeEditor
+            shared={{ kind: 'view-definition', id: view.id }}
             className="nokey"
             value={view.definition}
             onChange={(definition) => updateView(view.id, { definition })}

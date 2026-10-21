@@ -23,6 +23,11 @@ export interface CodeEditorProps {
   /** Botones a la derecha de la barra de pestañas (Copiar, Descargar…). */
   actions?: React.ReactNode
   ariaLabel?: string
+  /**
+   * Y.Text compartido (getSharedText/useSharedText de '@/collab'). Si viene, el contenido lo gobierna Yjs vía
+   * y-monaco (con cursores remotos) y `onChange` no se llama: el store se actualiza desde el documento.
+   */
+  sharedText?: unknown
 }
 
 export interface CodeDiffProps {

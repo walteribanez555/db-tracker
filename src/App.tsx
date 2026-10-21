@@ -6,6 +6,8 @@ import { FlowDock } from '@/components/operation-flow'
 import { ThemeToggle } from '@/components/theme/theme-toggle'
 import { Toaster } from '@/components/ui/sonner'
 import { TooltipProvider } from '@/components/ui/tooltip'
+// Colaboración en red: indicador/acciones de la cabecera, aviso de solo lectura y página /unirse.
+import { CollabBanner, CollabHeader, JoinPage } from '@/features/collab'
 import { EditorView } from '@/features/editor'
 import { GithubView } from '@/features/github'
 import { IoView } from '@/features/io'
@@ -29,6 +31,15 @@ export default function App() {
   const projectName = useProjectStore((s) => s.project.name)
   const { pathname } = useLocation()
 
+  // /unirse (enlace o QR del anfitrión) es una página independiente, sin la cabecera de la app.
+  if (pathname === '/unirse')
+    return (
+      <TooltipProvider>
+        <JoinPage />
+        <Toaster position="bottom-right" />
+      </TooltipProvider>
+    )
+
   return (
     <TooltipProvider>
       <div className="flex h-svh flex-col bg-background text-foreground">
@@ -43,10 +54,13 @@ export default function App() {
             <div className="min-w-0 max-w-full">
               <BranchSwitcher />
             </div>
-            <ThemeToggle className="ml-auto" />
+            {/* Colaboración: "Compartir" / "Unirse" o el indicador de sesión. */}
+            <CollabHeader className="ml-auto" />
+            <ThemeToggle />
           </div>
           <SectionNav items={NAV} />
         </header>
+        <CollabBanner />
         <main key={pathname} className="route-enter min-h-0 flex-1">
           <Routes>
             <Route path="/" element={<Navigate to="/editor" replace />} />

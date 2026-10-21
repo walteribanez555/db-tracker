@@ -2,7 +2,7 @@ import { Eye, Play, Plus, SquareFunction, Table2, Trash2, Zap } from 'lucide-rea
 import { useId, useMemo, type ReactNode } from 'react'
 
 import { CollapsibleSection } from '@/components/layout/collapsible-section'
-import { CodeEditor } from '@/components/code'
+import { SharedCodeEditor } from '@/components/code/shared-code-editor'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Input } from '@/components/ui/input'
@@ -284,7 +284,8 @@ function FunctionInspector({ fn }: { fn: DbFunction }) {
           htmlFor={`${id}-body`}
           hint="Disponibles: NEW, OLD, TG_OP, TG_TABLE_NAME, TG_WHEN. En BEFORE devuelve NEW (o NULL para cancelar); en AFTER el retorno se ignora."
         >
-          <CodeEditor
+          <SharedCodeEditor
+            shared={{ kind: 'function-body', id: fn.id }}
             value={fn.body}
             onChange={(body) => update({ body })}
             language="pgsql"

@@ -8,6 +8,8 @@ import { cn } from '@/lib/utils'
 
 import { useCanvasActions } from '../hooks/useCanvasActions'
 import { startEditing, useEditorUi } from '../lib/editorStore'
+import { useCollabUndoState } from '@/collab/undo-bridge'
+
 import { redo, undo, useHistoryStore } from '../lib/history'
 
 const isMac = typeof navigator !== 'undefined' && /Mac|iPhone|iPad/.test(navigator.platform)
@@ -49,8 +51,12 @@ function ToolButton({ icon: Icon, label, shortcut, active, disabled, onClick }: 
 export function Toolbar() {
   const tool = useEditorUi((s) => s.tool)
   const setTool = useEditorUi((s) => s.setTool)
-  const canUndo = useHistoryStore((s) => s.past.length > 0)
-  const canRedo = useHistoryStore((s) => s.future.length > 0)
+  const collabUndo = useCollabUndoState()
+  const localUndo = useHistoryStore((s) => s.past.length > 0)
+  const localRedo = useHistoryStore((s) => s.future.length > 0)
+  // En sesión colaborativa, deshacer/rehacer solo cubre los cambios propios (UndoManager de Yjs).
+  const canUndo = collabUndo.active ? collabUndo.canUndo : localUndo
+  const canRedo = collabUndo.active ? collabUndo.canRedo : localRedo
   const { addTable, addNote, addView, autoLayout, exportImage } = useCanvasActions()
 
   return (

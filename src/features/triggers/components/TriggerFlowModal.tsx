@@ -5,6 +5,7 @@ import { memo, useEffect, useMemo, useRef, useState, type ReactNode } from 'reac
 import { toast } from 'sonner'
 
 import { CodeEditor, sqlLanguageFor } from '@/components/code'
+import { SharedCodeEditor } from '@/components/code/shared-code-editor'
 import { useTheme } from '@/components/theme/theme-provider'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@/components/ui/dialog'
@@ -501,7 +502,8 @@ function FunctionBody({ fn, onChange }: { fn: DbFunction; onChange: (body: strin
   const draft = useProjectStore((s) => s.draft)
   return (
     <Section title={`Cuerpo de ${fn.name}()`}>
-      <CodeEditor
+      <SharedCodeEditor
+            shared={{ kind: 'function-body', id: fn.id }}
         value={fn.body}
         onChange={onChange}
         language="pgsql"

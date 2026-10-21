@@ -2,7 +2,8 @@ import { ExternalLink } from 'lucide-react'
 import type { ReactNode } from 'react'
 import { useNavigate } from 'react-router'
 
-import { CodeEditor, sqlLanguageFor } from '@/components/code'
+import { sqlLanguageFor } from '@/components/code'
+import { SharedCodeEditor } from '@/components/code/shared-code-editor'
 import { Button } from '@/components/ui/button'
 import { useProjectStore } from '@/store/project'
 import type { Trigger } from '@/types/schema'
@@ -42,7 +43,8 @@ export function TriggerInspector({ trigger }: { trigger: Trigger }) {
       </InspectorSection>
       {fn && (
         <InspectorSection title={`Cuerpo de ${fn.name}`} id="trigger-body" className="gap-2">
-          <CodeEditor
+          <SharedCodeEditor
+            shared={{ kind: 'function-body', id: fn.id }}
             className="nokey"
             value={fn.body}
             onChange={(body) => useProjectStore.getState().mutate((d) => void Object.assign(d.functions.find((f) => f.id === fn.id) ?? {}, { body }))}

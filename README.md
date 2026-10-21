@@ -16,6 +16,7 @@ Funciona en el navegador con un pequeño servidor local (Node + Hono) para conec
 | **Importar / exportar** | SQL (PostgreSQL, MySQL, SQLite, SQL Server), DBML, Prisma, Mermaid, Markdown y JSON, más migraciones entre versiones. |
 | **Bases remotas** | PostgreSQL y MySQL: leer el esquema, comparar, validar en seco, aplicar migraciones y medir el rendimiento de consultas. |
 | **GitHub** | Subir el proyecto a un repositorio (una rama por flujo, un commit por versión) y bajarlo. La conexión dura solo la sesión. |
+| **Colaboración en red** | Un equipo comparte su proyecto en la red local y otros se unen desde el escritorio, el navegador o el móvil (enlace, QR o código). Edición en tiempo real, cursores y selección de cada persona, roles y aprobación de invitados. |
 | **Interfaz** | Tema claro u oscuro (estilo Telegram, con transición circular), paneles plegables, editor de código estilo VS Code (Monaco) y un dock de operaciones paso a paso. |
 
 ## Inicio rápido
@@ -48,7 +49,10 @@ Después, en la app, ve a **Importar / Exportar → Bases de datos remotas** y c
 9. [Informes y PDF](docs/tutoriales/09-informes-y-pdf.md)
 10. [Subir y bajar con GitHub](docs/tutoriales/10-github.md)
 11. [Tema, paneles y atajos](docs/tutoriales/11-tema-y-atajos.md)
-12. [Aplicación de escritorio (en pausa)](docs/tutoriales/12-escritorio.md)
+12. [Aplicación de escritorio](docs/tutoriales/12-escritorio.md)
+13. [Colaborar en la red local](docs/tutoriales/13-colaboracion.md)
+
+Diseño técnico: [Colaboración en red: una app de escritorio como servidor](docs/arquitectura/colaboracion-en-red.md).
 
 ## Scripts
 
@@ -72,16 +76,17 @@ src/
   components/      piezas comunes: ui (shadcn), layout, theme, code (Monaco),
                    flow (menú de acciones), operation-flow (dock de operaciones)
   lib/             exporters, importers, diff
+  collab/          cliente de colaboración (Yjs, WebSocket, presencia)
   store/           estado del proyecto (zustand, persistido en el navegador)
   types/           modelo de dominio compartido
-server/            API Hono: /api/db (bases remotas) y /api/github
+server/            API Hono: /api/db (bases remotas), /api/github y /api/collab + /sync (colaboración)
 docker/            PostgreSQL de ejemplo con migraciones y datos
-electron/          proceso principal de escritorio (en pausa)
+electron/          proceso principal de escritorio (embebe la misma API)
 ```
 
 ## Stack
 
-React 19, TypeScript, Vite, Tailwind CSS v4, shadcn/ui, React Flow (`@xyflow/react`), zustand, Monaco, Recharts, `@react-pdf/renderer`, Hono, `pg`, `mysql2` y Octokit.
+React 19, TypeScript, Vite, Tailwind CSS v4, shadcn/ui, React Flow (`@xyflow/react`), zustand, Monaco, Recharts, `@react-pdf/renderer`, Hono, `pg`, `mysql2`, Octokit, Yjs y `ws`.
 
 ## Privacidad
 

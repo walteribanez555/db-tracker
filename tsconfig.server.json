@@ -13,5 +13,5 @@
     "verbatimModuleSyntax": true,
     "paths": { "@/*": ["./src/*"] }
   },
-  "include": ["server", "electron", "src/types", "src/lib/exporters", "src/lib/diff.ts", "src/lib/id.ts"]
+  "include": ["server", "electron", "src/collab/protocol.ts", "src/types", "src/lib/exporters", "src/lib/diff.ts", "src/lib/id.ts"]
 }
