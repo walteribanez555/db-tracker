@@ -5,6 +5,7 @@ import { leaveSession } from '@/collab'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 
+import { keepSharedBenchmarks } from '../lib/host'
 import { useJoinContext } from '../lib/join'
 
 export type LeaveReason = 'leave' | 'kicked' | 'ended'
@@ -32,6 +33,7 @@ export function LeaveDialog({ reason, onOpenChange }: { reason: LeaveReason | nu
   const leave = async (keepCopy: boolean) => {
     setBusy(true)
     try {
+      if (keepCopy) keepSharedBenchmarks()
       await leaveSession({ keepCopy })
       useJoinContext.getState().set(null)
       toast(keepCopy ? 'Te quedaste con una copia del proyecto' : 'Saliste de la sesión')

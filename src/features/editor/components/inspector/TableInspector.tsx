@@ -17,7 +17,7 @@ import { Field, InspectorHeader, InspectorSection } from './primitives'
 
 const TAB_FADE = 'animate-in fade-in-0 duration-200 ease-out motion-reduce:animate-none'
 
-function TableRelations({ table }: { table: Table }) {
+export function TableRelations({ table }: { table: Table }) {
   const draft = useProjectStore((s) => s.draft)
   const setSelection = useProjectStore((s) => s.setSelection)
   const related = draft.relations.filter((r) => r.sourceTableId === table.id || r.targetTableId === table.id)
@@ -36,7 +36,7 @@ function TableRelations({ table }: { table: Table }) {
             key={r.id}
             type="button"
             onClick={() => setSelection({ kind: 'relation', id: r.id })}
-            className="flex w-full items-center gap-2 border-b px-4 py-2 text-left font-mono text-xs last:border-b-0 hover:bg-muted/60"
+            className="flex w-full items-center gap-2 border-b px-4 py-2 text-left font-mono text-xs last:border-b-0 hover:bg-muted/60 max-md:min-h-[52px]"
           >
             <span className="min-w-0 flex-1 truncate">
               {l.source}.{l.sourceColumn}

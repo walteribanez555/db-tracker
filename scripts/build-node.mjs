@@ -1,4 +1,5 @@
-// Empaqueta los procesos Node (Electron main/preload y servidor web) con esbuild.
+// Empaqueta los procesos Node (Electron main/preload, servidor web y puente MCP stdio) con esbuild.
+// Uso: node scripts/build-node.mjs [all|electron|server|mcp]
 import { build } from 'esbuild'
 
 const target = process.argv[2] ?? 'all'
@@ -29,6 +30,19 @@ if (target === 'all' || target === 'electron') {
 
 if (target === 'all' || target === 'server') {
   jobs.push(build({ ...common, entryPoints: ['server/index.ts'], outfile: 'dist-server/index.mjs', format: 'esm', banner: esmBanner }))
+}
+
+if (target === 'all' || target === 'mcp') {
+  // Puente stdio → HTTP para clientes MCP sin HTTP (Claude Desktop): node dist-mcp/stdio.mjs
+  jobs.push(
+    build({
+      ...common,
+      entryPoints: ['server/mcp/stdio.ts'],
+      outfile: 'dist-mcp/stdio.mjs',
+      format: 'esm',
+      banner: { js: `#!/usr/bin/env node\n${esmBanner.js}` },
+    }),
+  )
 }
 
 await Promise.all(jobs)

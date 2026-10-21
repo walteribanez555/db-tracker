@@ -15,12 +15,15 @@ import * as Y from 'yjs'
 import {
   AWARENESS_MESSAGE,
   SYNC_MESSAGE,
+  type ActivityEntry,
+  type AwarenessState,
   type ClientKind,
   type CollabRole,
   type ControlMessage,
   type Participant,
   type ParticipantAction,
   type PublicSessionInfo,
+  Y_KEYS,
 } from '../../src/collab/protocol.ts'
 import { slugify } from './network.ts'
 
@@ -84,8 +87,15 @@ export class RoomError extends Error {
 
 export interface RoomOptions {
   projectName: string
+  /**
+   * true si el nombre es provisional (sesión abierta por un agente MCP sin conocer el proyecto): la sala adopta
+   * el nombre real cuando el anfitrión siembra el documento (meta.name) o al compartir desde la app.
+   */
+  provisionalName?: boolean
   hostName: string
   autoApprove: boolean
+  /** Los agentes MCP entran sin aprobación manual. */
+  autoApproveAgents?: boolean
   shareRemoteApis: boolean
   dataDir: string
   /** Se llama cada vez que cambia la lista de participantes (para el anuncio mDNS). */
@@ -109,14 +119,131 @@ function str(value: unknown, max: number) {
   return typeof value === 'string' ? value.trim().slice(0, max) : ''
 }
 
+/* ───────────────────────── Agentes (participantes virtuales) ───────────────────────── */
+
+const AGENT_COLORS = ['#9333ea', '#0d9488', '#c2410c', '#4f46e5', '#be123c', '#15803d', '#b45309', '#0369a1', '#a21caf', '#0f766e']
+/** Un agente sin actividad durante este tiempo sale de la sala (vuelve a entrar con su siguiente llamada). */
+const AGENT_IDLE_MS = 15 * 60_000
+/** `editing` de una acción puntual (no fijado con set_status) se borra pasado este tiempo. */
+const AGENT_EDITING_MS = 30_000
+const MAX_ACTIVITY = 200
+
+/** Color estable por nombre (mismo agente → mismo color en todas las sesiones). */
+export function agentColor(name: string) {
+  let h = 0
+  for (const ch of name.trim().toLowerCase()) h = (Math.imul(h, 31) + ch.codePointAt(0)!) >>> 0
+  return AGENT_COLORS[h % AGENT_COLORS.length]
+}
+
+const agentKey = (name: string) => name.trim().toLowerCase()
+
+export type AgentEditing = { kind: string; id: string; label: string } | null
+
+/** Participante virtual (kind 'agent') que actúa vía MCP con su propio estado de awareness. */
+export class RoomAgent {
+  readonly participant: Participant
+  /** Documento auxiliar: solo aporta un clientID propio para el awareness del agente. */
+  readonly presenceDoc = new Y.Doc()
+  readonly awareness = new awarenessProtocol.Awareness(this.presenceDoc)
+  lastSeen = Date.now()
+  private presence: { branchId: string; route: string; editing: AgentEditing; status: string } = {
+    branchId: '',
+    route: '/editor',
+    editing: null,
+    status: '',
+  }
+  private editingTimer: ReturnType<typeof setTimeout> | null = null
+
+  constructor(name: string, id: string) {
+    this.participant = {
+      id,
+      name,
+      color: agentColor(name),
+      kind: 'agent',
+      role: DEFAULT_ROLE,
+      status: 'pending',
+      address: 'MCP (este equipo)',
+      joinedAt: new Date().toISOString(),
+    }
+    this.awareness.setLocalState(null)
+  }
+
+  get name() {
+    return this.participant.name
+  }
+
+  get active() {
+    return this.participant.status === 'active'
+  }
+
+  get clientID() {
+    return this.presenceDoc.clientID
+  }
+
+  touch() {
+    this.lastSeen = Date.now()
+  }
+
+  /**
+   * Publica presencia: rama, qué edita y un texto de estado. `sticky` (set_status) mantiene `editing` hasta el
+   * siguiente cambio; si no, se borra solo tras unos segundos (destello de la acción).
+   */
+  setPresence(patch: { branchId?: string; editing?: AgentEditing; status?: string; route?: string }, sticky = false) {
+    this.touch()
+    if (patch.branchId !== undefined) this.presence.branchId = patch.branchId
+    if (patch.route !== undefined) this.presence.route = patch.route
+    if (patch.status !== undefined) this.presence.status = patch.status
+    if (patch.editing !== undefined) {
+      this.presence.editing = patch.editing
+      if (this.editingTimer) clearTimeout(this.editingTimer)
+      this.editingTimer = null
+      if (patch.editing && !sticky) {
+        this.editingTimer = setTimeout(() => {
+          this.editingTimer = null
+          this.presence.editing = null
+          this.publish()
+        }, AGENT_EDITING_MS)
+        this.editingTimer.unref?.()
+      }
+    }
+    this.publish()
+  }
+
+  /** Estado de awareness (solo si está activo). */
+  publish() {
+    if (!this.active) return
+    const p = this.participant
+    const state: AwarenessState & { status?: string; agent: true } = {
+      user: { id: p.id, name: p.name, color: p.color, kind: 'agent', role: p.role },
+      branchId: this.presence.branchId,
+      route: this.presence.route,
+      cursor: null,
+      selection: this.presence.editing ? { kind: this.presence.editing.kind, id: this.presence.editing.id } : null,
+      editing: this.presence.editing,
+      status: this.presence.status || undefined,
+      agent: true,
+    }
+    this.awareness.setLocalState(state)
+  }
+
+  destroy() {
+    if (this.editingTimer) clearTimeout(this.editingTimer)
+    this.awareness.setLocalState(null)
+    this.awareness.destroy()
+    this.presenceDoc.destroy()
+  }
+}
+
 export class Room {
   readonly id = randomUUID()
   readonly code: string
   readonly secret = randomBytes(32).toString('base64url')
   readonly startedAt = new Date().toISOString()
-  readonly projectName: string
+  projectName: string
+  provisionalName: boolean
   hostName: string
   autoApprove: boolean
+  autoApproveAgents: boolean
   shareRemoteApis: boolean
 
   readonly doc = new Y.Doc()
@@ -128,7 +255,13 @@ export class Room {
   /** clientId expulsados: no pueden volver a entrar en esta sesión. */
   private readonly blocked = new Set<string>()
   private readonly failures = new Map<string, { count: number; resetAt: number }>()
-  private readonly file: string
+  /** Agentes por nombre normalizado. */
+  private readonly agents = new Map<string, RoomAgent>()
+  private readonly approvedAgents = new Set<string>()
+  private readonly blockedAgents = new Set<string>()
+  private readonly recentActivity: ActivityEntry[] = []
+  private agentSweep: ReturnType<typeof setInterval> | null = null
+  private file: string
   private persistTimer: ReturnType<typeof setTimeout> | null = null
   private dirty = false
   private ended = false
@@ -140,10 +273,33 @@ export class Room {
   ) {
     this.code = randomCode(alphabet)
     this.projectName = options.projectName
+    this.provisionalName = options.provisionalName ?? false
     this.hostName = options.hostName
     this.autoApprove = options.autoApprove
+    this.autoApproveAgents = options.autoApproveAgents ?? true
     this.shareRemoteApis = options.shareRemoteApis
-    this.file = path.join(options.dataDir, 'salas', `${slugify(options.projectName)}.ydoc`)
+    this.file = this.fileFor(options.projectName)
+
+    // Nombre provisional: se adopta el del proyecto cuando el anfitrión lo siembra.
+    if (this.provisionalName) {
+      const meta = this.doc.getMap<unknown>(Y_KEYS.meta)
+      const onMeta = () => {
+        // Ya renombrada (p. ej. por /share desde la app): no se vuelve a tocar.
+        if (!this.provisionalName) {
+          meta.unobserve(onMeta)
+          return
+        }
+        const name = meta.get('name')
+        if (typeof name === 'string' && name.trim()) {
+          meta.unobserve(onMeta)
+          this.rename(name)
+        }
+      }
+      meta.observe(onMeta)
+    }
+
+    this.agentSweep = setInterval(() => this.sweepAgents(), 60_000)
+    this.agentSweep.unref?.()
 
     // El servidor no publica presencia propia.
     this.awareness.setLocalState(null)
@@ -176,6 +332,24 @@ export class Room {
   }
 
   /* ───────────────────────── Persistencia ───────────────────────── */
+
+  private fileFor(projectName: string) {
+    return path.join(this.options.dataDir, 'salas', `${slugify(projectName)}.ydoc`)
+  }
+
+  /** Cambia el nombre (y el archivo de persistencia) de una sala con nombre provisional. */
+  rename(projectName: string) {
+    const name = projectName.trim()
+    if (!name || name === this.projectName) {
+      this.provisionalName = false
+      return
+    }
+    this.projectName = name
+    this.provisionalName = false
+    this.file = this.fileFor(name)
+    this.schedulePersist()
+    this.options.onParticipantsChange?.()
+  }
 
   /** Recarga la copia en disco del mismo proyecto (si existe). */
   async load() {
@@ -231,7 +405,14 @@ export class Room {
   activeCount() {
     let n = 0
     for (const conn of this.conns) if (conn.phase === 'active') n++
+    for (const agent of this.agents.values()) if (agent.active) n++
     return n
+  }
+
+  /** true si el anfitrión (owner) está conectado. */
+  hasOwner() {
+    for (const conn of this.conns) if (conn.phase === 'active' && conn.participant?.role === 'owner') return true
+    return false
   }
 
   publicInfo(): PublicSessionInfo {
@@ -251,6 +432,7 @@ export class Room {
     for (const conn of this.conns) {
       if (conn.participant && (conn.phase === 'active' || conn.phase === 'pending')) list.push({ ...conn.participant })
     }
+    for (const agent of this.agents.values()) list.push({ ...agent.participant })
     return list
   }
 
@@ -525,6 +707,11 @@ export class Room {
   }
 
   act(participantId: string, action: ParticipantAction) {
+    const agent = [...this.agents.values()].find((a) => a.participant.id === participantId)
+    if (agent) {
+      this.actOnAgent(agent, action)
+      return
+    }
     const conn = this.findConn(participantId)
     if (!conn || !conn.participant || conn.phase === 'hello') throw new RoomError('El participante no existe o ya se ha desconectado.', 404)
     if (conn.participant.role === 'owner') throw new RoomError('No se puede cambiar ni expulsar al anfitrión.', 400)
@@ -561,9 +748,13 @@ export class Room {
   }
 
   /** Cambia las opciones de la sesión en caliente (re-POST de /share). */
-  update(opts: { autoApprove?: boolean; shareRemoteApis?: boolean; hostName?: string }) {
+  update(opts: { autoApprove?: boolean; autoApproveAgents?: boolean; shareRemoteApis?: boolean; hostName?: string }) {
     if (opts.hostName) this.hostName = opts.hostName
     if (opts.shareRemoteApis !== undefined) this.shareRemoteApis = opts.shareRemoteApis
+    if (opts.autoApproveAgents !== undefined && opts.autoApproveAgents !== this.autoApproveAgents) {
+      this.autoApproveAgents = opts.autoApproveAgents
+      if (this.autoApproveAgents) for (const agent of this.agents.values()) if (!agent.active) this.activateAgent(agent)
+    }
     if (opts.autoApprove !== undefined && opts.autoApprove !== this.autoApprove) {
       this.autoApprove = opts.autoApprove
       // Al activar la aprobación automática se aceptan las solicitudes que estaban esperando.
@@ -572,10 +763,127 @@ export class Room {
     }
   }
 
+  /* ───────────────────────── Agentes MCP ───────────────────────── */
+
+  get isEnded() {
+    return this.ended
+  }
+
+  /**
+   * Devuelve (o crea) el participante virtual de un agente. Entra activo si `autoApproveAgents` o si ya se
+   * aprobó antes; si no, queda pendiente hasta que el anfitrión lo apruebe. Lanza RoomError si fue expulsado.
+   */
+  agent(name: string): RoomAgent {
+    const clean = str(name, 40)
+    if (!clean) throw new RoomError('Falta el nombre del agente.', 400)
+    const key = agentKey(clean)
+    if (this.ended) throw new RoomError('La sesión ha terminado.', 409)
+    if (this.blockedAgents.has(key)) throw new RoomError(`El anfitrión ha expulsado al agente «${clean}» de esta sesión.`, 409)
+    let agent = this.agents.get(key)
+    if (agent) {
+      agent.touch()
+      return agent
+    }
+    agent = new RoomAgent(clean, `a_${randomBytes(6).toString('base64url')}`)
+    this.agents.set(key, agent)
+    // Presencia del agente → awareness de la sala (se difunde como la de cualquier cliente).
+    const forward = ({ added, updated, removed }: { added: number[]; updated: number[]; removed: number[] }) => {
+      if (this.ended) return
+      const changed = [...added, ...updated, ...removed]
+      awarenessProtocol.applyAwarenessUpdate(this.awareness, awarenessProtocol.encodeAwarenessUpdate(agent!.awareness, changed), agent)
+    }
+    agent.awareness.on('update', forward)
+    if (this.autoApproveAgents || this.approvedAgents.has(key)) this.activateAgent(agent)
+    else this.participantsChanged()
+    return agent
+  }
+
+  /** Agentes presentes (activos y pendientes). */
+  agentList(): RoomAgent[] {
+    return [...this.agents.values()]
+  }
+
+  private activateAgent(agent: RoomAgent) {
+    agent.participant.status = 'active'
+    this.approvedAgents.add(agentKey(agent.name))
+    agent.publish()
+    this.participantsChanged()
+    this.activity(agent.participant, 'se unió a la sesión', 'agente MCP')
+  }
+
+  private removeAgent(agent: RoomAgent) {
+    const key = agentKey(agent.name)
+    if (this.agents.get(key) !== agent) return
+    this.agents.delete(key)
+    agent.destroy()
+    // Por si el aviso de borrado no llegó: se quita su estado de la sala.
+    if (this.awareness.getStates().has(agent.clientID)) awarenessProtocol.removeAwarenessStates(this.awareness, [agent.clientID], null)
+    this.participantsChanged()
+  }
+
+  private actOnAgent(agent: RoomAgent, action: ParticipantAction) {
+    const key = agentKey(agent.name)
+    switch (action.action) {
+      case 'approve':
+        if (action.role) agent.participant.role = action.role
+        if (!agent.active) this.activateAgent(agent)
+        return
+      case 'reject':
+        if (agent.active) throw new RoomError('Solo se pueden rechazar solicitudes pendientes. Usa «Expulsar».', 409)
+        this.blockedAgents.add(key)
+        this.removeAgent(agent)
+        return
+      case 'kick':
+        this.blockedAgents.add(key)
+        this.approvedAgents.delete(key)
+        this.removeAgent(agent)
+        this.activity(agent.participant, 'fue expulsado de la sesión')
+        return
+      case 'set-role': {
+        const role = action.role
+        if (role !== 'editor' && role !== 'viewer') throw new RoomError('Rol no válido.', 400)
+        agent.participant.role = role
+        agent.publish()
+        this.participantsChanged()
+        return
+      }
+    }
+  }
+
+  /** Saca a los agentes inactivos (vuelven a entrar, sin aprobación, con su siguiente llamada). */
+  private sweepAgents() {
+    const now = Date.now()
+    for (const agent of [...this.agents.values()]) if (now - agent.lastSeen > AGENT_IDLE_MS) this.removeAgent(agent)
+  }
+
+  /** Difunde una entrada de Actividad ({t:'activity'}) a todos los participantes activos. */
+  activity(actor: Pick<Participant, 'id' | 'name' | 'color' | 'kind'>, action: string, detail?: string, branchId?: string): ActivityEntry {
+    const entry: ActivityEntry = {
+      id: `act_${randomBytes(6).toString('base64url')}`,
+      at: new Date().toISOString(),
+      actor: { id: actor.id, name: actor.name, color: actor.color, kind: actor.kind },
+      action,
+      ...(detail ? { detail: detail.slice(0, 500) } : {}),
+      ...(branchId ? { branchId } : {}),
+    }
+    this.recentActivity.push(entry)
+    if (this.recentActivity.length > MAX_ACTIVITY) this.recentActivity.splice(0, this.recentActivity.length - MAX_ACTIVITY)
+    for (const conn of this.conns) if (conn.phase === 'active') this.sendControl(conn, { t: 'activity', entry })
+    return entry
+  }
+
+  /** Últimas entradas de Actividad (más recientes al final). */
+  activityLog(limit = 20): ActivityEntry[] {
+    return this.recentActivity.slice(-limit)
+  }
+
   /** Termina la sesión: avisa {t:'ended'}, cierra todos los sockets y guarda el documento. */
   async end() {
     if (this.ended) return
     this.ended = true
+    if (this.agentSweep) clearInterval(this.agentSweep)
+    for (const agent of this.agents.values()) agent.destroy()
+    this.agents.clear()
     for (const conn of [...this.conns]) {
       this.sendControl(conn, { t: 'ended' })
       this.drop(conn, CLOSE.ended)

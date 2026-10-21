@@ -24,6 +24,13 @@ export {
   type ConnectionStatus,
 } from './store'
 export { BACKUP_KEY, hasProjectBackup, restoreProjectBackup } from './backup'
+export {
+  getSharedBenchmarks,
+  MAX_ACTIVITY,
+  useActivity,
+  useSharedBenchmarks,
+  type SharedBenchmark,
+} from './feed'
 
 export interface JoinOptions {
   /** Base http(s) del anfitrión, p. ej. "http://192.168.1.24:47123" ('' = mismo origen). */

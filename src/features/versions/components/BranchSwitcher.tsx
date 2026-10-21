@@ -23,8 +23,11 @@ import { CommitDialog } from './CommitDialog'
 import { useConfirm } from './ConfirmDialog'
 import { CreateBranchDialog } from './CreateBranchDialog'
 
-/** Selector de rama para la cabecera: cambiar de rama, crear rama, confirmar o descartar el borrador. */
-export function BranchSwitcher() {
+/**
+ * Selector de rama para la cabecera: cambiar de rama, crear rama, confirmar o descartar el borrador.
+ * `compact` (barra superior móvil): texto mono pequeño, sin el botón "Confirmar" aparte (está en el menú).
+ */
+export function BranchSwitcher({ compact = false }: { compact?: boolean } = {}) {
   const laneColor = useLaneColor()
   const project = useProjectStore((s) => s.project)
   const discardDraft = useProjectStore((s) => s.discardDraft)
@@ -68,9 +71,13 @@ export function BranchSwitcher() {
     <div className="flex items-center gap-1">
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
-          <Button variant="ghost" size="sm" className="gap-1.5 font-mono" aria-label={`Rama actual: ${branch?.name}${dirty ? ', con cambios sin confirmar' : ''}`}>
+          <Button
+            variant="ghost"
+            size="sm"
+            className={compact ? 'h-8 min-w-0 gap-1 px-1.5 font-mono text-xs text-muted-foreground' : 'gap-1.5 font-mono'}
+            aria-label={`Rama actual: ${branch?.name}${dirty ? ', con cambios sin confirmar' : ''}`}>
             <GitBranch className="size-3.5" />
-            <span className="max-w-48 truncate">{branch?.name}</span>
+            <span className={compact ? 'max-w-28 truncate' : 'max-w-48 truncate'}>{branch?.name}</span>
             {dirty && (
               <span aria-hidden title="Cambios sin confirmar" className="relative flex size-2">
                 <span className="absolute inline-flex size-full animate-ping rounded-full bg-amber-500/60 [animation-duration:2s] motion-reduce:hidden dark:bg-amber-400/50" />
@@ -80,7 +87,7 @@ export function BranchSwitcher() {
             <ChevronsUpDown className="size-3 text-muted-foreground" />
           </Button>
         </DropdownMenuTrigger>
-        <DropdownMenuContent align="start" className="w-80">
+        <DropdownMenuContent align="start" className={compact ? 'w-[min(20rem,calc(100vw-1rem))] [&_[role^=menuitem]]:min-h-11' : 'w-80'}>
           <DropdownMenuLabel className="flex items-center justify-between">
             <span>Ramas / flujos</span>
             {dirty && <span className="text-xs font-normal text-amber-700 dark:text-amber-400">● sin confirmar</span>}
@@ -122,7 +129,7 @@ export function BranchSwitcher() {
         </DropdownMenuContent>
       </DropdownMenu>
 
-      {dirty && (
+      {dirty && !compact && (
         <Tooltip>
           <TooltipTrigger asChild>
             <Button size="sm" variant="outline" className="gap-1.5" onClick={() => setCommitting(true)}>

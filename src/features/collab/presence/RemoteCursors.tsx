@@ -5,8 +5,10 @@ import { useInternalNode, useReactFlow, useStore, type ReactFlowState } from '@x
 import { useEffect, useRef } from 'react'
 
 import { updatePresence, useCollabStore, type AwarenessState } from '@/collab'
+import { useProjectStore } from '@/store/project'
 
 import { usePeersHere, type PeerHere } from '../hooks'
+import { entityName } from './usePresencePublisher'
 
 type Sel = { kind: string; id: string }
 
@@ -45,9 +47,15 @@ function PeerMarks({ peer, zoom, nodeIdFor }: { peer: PeerHere; zoom: number; no
   const st: AwarenessState = peer.state
   const target = st.editing ?? st.selection
   const nodeId = target ? nodeIdFor(target) : null
+  // "Normalizador está editando pedidos". En los agentes, editing.label es su estado (set_status),
+  // así que el nombre sale del borrador; en las personas, label ya es el nombre.
+  const agent = st.user.kind === 'agent'
+  const name = useProjectStore((s) => (st.editing ? entityName(s.draft, st.editing.kind, st.editing.id) : null))
+  const what = name ?? (agent ? null : st.editing?.label || null)
+  const label = st.editing ? `${st.user.name} está editando${what ? ` ${what}` : ''}` : null
   return (
     <>
-      {nodeId && <NodeOutline nodeId={nodeId} color={st.user.color} label={st.editing ? `${st.user.name} está editando` : null} zoom={zoom} />}
+      {nodeId && <NodeOutline nodeId={nodeId} color={st.user.color} label={label} zoom={zoom} />}
       {st.cursor && <Cursor x={st.cursor.x} y={st.cursor.y} name={st.user.name} color={st.user.color} zoom={zoom} />}
     </>
   )

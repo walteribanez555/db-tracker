@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Switch } from '@/components/ui/switch'
+import { useIsMobile } from '@/hooks/use-mobile'
 import { useProjectStore } from '@/store/project'
 
 import { discrete, updateView } from '../../lib/actions'
@@ -19,6 +20,8 @@ export function ViewSqlPanel({ viewId }: { viewId: string }) {
   const view = draft.views.find((v) => v.id === viewId)
   const id = useId()
   const [report, setReport] = useState<string | null>(null)
+  // Móvil: el panel ocupa toda la pantalla, así que el editor puede crecer más.
+  const isMobile = useIsMobile()
   if (!view) return null
 
   const detect = () => {
@@ -36,7 +39,7 @@ export function ViewSqlPanel({ viewId }: { viewId: string }) {
           value={view.name}
           onChange={(e) => updateView(view.id, { name: e.target.value })}
           aria-label="Nombre de la vista"
-          className="h-7 flex-1 font-mono text-xs md:text-xs"
+          className="h-7 flex-1 font-mono text-xs md:text-xs max-md:h-11 max-md:text-base"
         />
         <Label htmlFor={`${id}-mat`} className="text-xs font-normal text-muted-foreground">
           Materializada
@@ -57,18 +60,18 @@ export function ViewSqlPanel({ viewId }: { viewId: string }) {
         filename={`${view.name || 'vista'}.sql`}
         schema={draft}
         height="auto"
-        minHeight={180}
-        maxHeight={380}
+        minHeight={isMobile ? 260 : 180}
+        maxHeight={isMobile ? 560 : 380}
         statusBar
         ariaLabel={`SQL de la vista ${view.name}`}
       />
       <div className="flex items-center gap-2">
-        <Button variant="outline" size="sm" onClick={detect} disabled={!view.definition.trim()}>
+        <Button variant="outline" size="sm" className="max-md:h-11" onClick={detect} disabled={!view.definition.trim()}>
           <ScanSearch />
           Detectar columnas
         </Button>
         <span className="min-w-0 flex-1 truncate text-xs text-muted-foreground">{report}</span>
-        <Button variant="ghost" size="sm" onClick={stopEditing}>
+        <Button variant="ghost" size="sm" className="max-md:h-11" onClick={stopEditing}>
           Listo
         </Button>
       </div>

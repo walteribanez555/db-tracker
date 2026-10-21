@@ -51,7 +51,7 @@ export function TriggerEditPanel({ triggerId }: { triggerId: string }) {
         value={trigger.name}
         onChange={(e) => updateTrigger(trigger.id, { name: e.target.value })}
         aria-label="Nombre del trigger"
-        className="h-7 font-mono text-xs md:text-xs"
+        className="h-7 font-mono text-xs md:text-xs max-md:h-11 max-md:text-base"
       />
       <div className="grid gap-1.5">
         <span className="text-xs text-muted-foreground">Momento</span>
@@ -65,7 +65,7 @@ export function TriggerEditPanel({ triggerId }: { triggerId: string }) {
           className="w-full"
         >
           {TIMINGS.map((t) => (
-            <ToggleGroupItem key={t} value={t} className="flex-1 font-mono text-[11px]">
+            <ToggleGroupItem key={t} value={t} className="flex-1 font-mono text-[11px] max-md:h-10">
               {t}
             </ToggleGroupItem>
           ))}
@@ -75,7 +75,7 @@ export function TriggerEditPanel({ triggerId }: { triggerId: string }) {
         <span className="text-xs text-muted-foreground">Eventos</span>
         <div className="flex flex-wrap gap-x-3 gap-y-1.5">
           {EVENTS.map((ev) => (
-            <label key={ev} className="flex items-center gap-1.5 font-mono text-[11px]">
+            <label key={ev} className="flex items-center gap-1.5 font-mono text-[11px] max-md:min-h-11 max-md:text-xs">
               <Checkbox checked={trigger.events.includes(ev)} onCheckedChange={(v) => toggleEvent(ev, v === true)} />
               {ev}
             </label>
@@ -92,10 +92,10 @@ export function TriggerEditPanel({ triggerId }: { triggerId: string }) {
           value={trigger.level}
           onValueChange={(v) => v && patch({ level: v as 'ROW' | 'STATEMENT' })}
         >
-          <ToggleGroupItem value="ROW" className="font-mono text-[11px]">
+          <ToggleGroupItem value="ROW" className="font-mono text-[11px] max-md:h-10">
             ROW
           </ToggleGroupItem>
-          <ToggleGroupItem value="STATEMENT" className="font-mono text-[11px]">
+          <ToggleGroupItem value="STATEMENT" className="font-mono text-[11px] max-md:h-10">
             STATEMENT
           </ToggleGroupItem>
         </ToggleGroup>
@@ -109,13 +109,13 @@ export function TriggerEditPanel({ triggerId }: { triggerId: string }) {
           value={trigger.condition ?? ''}
           onChange={(e) => updateTrigger(trigger.id, { condition: e.target.value || undefined })}
           placeholder="OLD.estado IS DISTINCT FROM NEW.estado"
-          className="h-7 font-mono text-xs md:text-xs"
+          className="h-7 font-mono text-xs md:text-xs max-md:h-11 max-md:text-base"
         />
       </div>
       <div className="grid gap-1.5">
         <span className="text-xs text-muted-foreground">Función</span>
         <Select value={trigger.functionId} onValueChange={pickFunction}>
-          <SelectTrigger size="sm" className="w-full font-mono text-xs">
+          <SelectTrigger size="sm" className="w-full font-mono text-xs max-md:data-[size=sm]:h-11">
             <SelectValue placeholder="Sin función" />
           </SelectTrigger>
           <SelectContent position="popper">
@@ -132,11 +132,11 @@ export function TriggerEditPanel({ triggerId }: { triggerId: string }) {
         </Select>
       </div>
       <div className="flex items-center justify-between gap-2 border-t pt-2.5">
-        <Button variant="ghost" size="sm" onClick={() => navigate('/triggers')}>
+        <Button variant="ghost" size="sm" className="max-md:h-11" onClick={() => navigate('/triggers')}>
           <ExternalLink />
           Abrir en Triggers
         </Button>
-        <Button variant="ghost" size="sm" onClick={stopEditing}>
+        <Button variant="ghost" size="sm" className="max-md:h-11" onClick={stopEditing}>
           Listo
         </Button>
       </div>

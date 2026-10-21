@@ -24,7 +24,8 @@ const EDIT_KIND: Record<InlineEdit['kind'], string> = {
   note: 'note',
 }
 
-function labelFor(draft: Schema, kind: string, id: string): string {
+/** Nombre visible de una entidad del borrador (null si no existe en él). */
+export function entityName(draft: Schema, kind: string, id: string): string | null {
   const list: { id: string; name?: string; title?: string }[] =
     kind === 'table'
       ? draft.tables
@@ -38,8 +39,11 @@ function labelFor(draft: Schema, kind: string, id: string): string {
               ? (draft.notes as { id: string }[])
               : []
   const item = list.find((x) => x.id === id)
-  return item?.name ?? item?.title ?? 'nota'
+  if (!item) return null
+  return item.name ?? item.title ?? 'nota'
 }
+
+const labelFor = (draft: Schema, kind: string, id: string): string => entityName(draft, kind, id) ?? 'nota'
 
 export function usePresencePublisher() {
   const active = useIsCollaborating()

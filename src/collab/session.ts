@@ -18,7 +18,8 @@ import {
 } from './backup'
 import { LOCAL_ORIGIN, StoreBinding } from './binding'
 import { createDraft, docToProject, headDraft, isDocEmpty, readDraft, readMeta, rootMaps, writeBranches, writeProjectToDoc, writeVersions } from './doc'
-import type { AwarenessState, ClientKind, CollabRole, ControlMessage } from './protocol'
+import { parseSharedBenchmarks, pushActivity, resetFeed, setSharedBenchmarks } from './feed'
+import { Y_KEYS, type AwarenessState, type ClientKind, type CollabRole, type ControlMessage } from './protocol'
 import { SyncProvider, syncUrl, type ProviderStatus } from './provider'
 import { getClientId, initialCollabState, saveDefaultName, useCollabStore } from './store'
 
@@ -58,6 +59,8 @@ export class CollabSession {
   private waitingForContent: (() => void) | null = null
   private adopted = false
   private closed = false
+  /** Y.Map 'benchmarks' (mediciones de agentes MCP): se observa aparte del binding, no es parte del proyecto. */
+  private readonly benchmarks = this.doc.getMap<string>(Y_KEYS.benchmarks)
 
   constructor(options: SessionOptions) {
     this.options = options
@@ -78,6 +81,8 @@ export class CollabSession {
       me: { participantId: null, name, color, kind, role: null },
       bindingEpoch: useCollabStore.getState().bindingEpoch + 1,
     })
+    resetFeed()
+    this.benchmarks.observe(this.onBenchmarks)
 
     if (this.options.persistence !== false && typeof indexedDB !== 'undefined') {
       try {
@@ -116,7 +121,7 @@ export class CollabSession {
         onSynced: this.onSynced,
         onControl: (msg) => {
           this.onControl(msg)
-          if (msg.t !== 'participants' && msg.t !== 'role' && msg.t !== 'error') settle(resolve)
+          if (msg.t !== 'participants' && msg.t !== 'role' && msg.t !== 'error' && msg.t !== 'activity') settle(resolve)
         },
         onConnectError: (error) =>
           settle(() => reject(new Error(`No se pudo conectar con la sesión (${syncUrl(this.options.baseUrl, this.options.sessionId)}): ${error.message}`))),
@@ -134,6 +139,8 @@ export class CollabSession {
     this.provider?.destroy()
     this.provider = null
     this.awareness.off('change', this.onAwarenessChange)
+    this.benchmarks.unobserve(this.onBenchmarks)
+    setSharedBenchmarks([])
     if (this.peersTimer) clearTimeout(this.peersTimer)
     if (this.cursorTimer) clearTimeout(this.cursorTimer)
     this.awareness.destroy()
@@ -213,6 +220,10 @@ export class CollabSession {
     }, PEERS_THROTTLE_MS)
   }
 
+  private onBenchmarks = () => {
+    if (!this.closed) setSharedBenchmarks(parseSharedBenchmarks(this.benchmarks.entries()))
+  }
+
   /* ─────────────── Control y estado ─────────────── */
 
   private onProviderStatus = (status: ProviderStatus) => {
@@ -263,6 +274,9 @@ export class CollabSession {
         break
       case 'error':
         useCollabStore.setState({ error: msg.message })
+        break
+      case 'activity':
+        pushActivity(msg.entry)
         break
       case 'hello':
         break

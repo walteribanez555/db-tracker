@@ -6,7 +6,7 @@ import { useProjectStore } from '@/store/project'
 import type { DocumentProps } from '@react-pdf/renderer'
 
 import { estimatedBenchmarks } from '../lib'
-import { useBenchmarkStore } from '../store'
+import { getReportBenchmarks } from '../store'
 import { buildFlowSection, buildReportBase, reportFileName, type BenchmarkWithDetail, type FlowSection, type OperationLog, type PdfOptions, type ReportData } from './data'
 
 /** Cuenta páginas de un PDF generado por react-pdf (objetos /Type /Page sin comprimir). */
@@ -38,7 +38,7 @@ export async function renderReportBlob(data: ReportData): Promise<Blob> {
 /** Genera y descarga el informe PDF de los flujos seleccionados. */
 export async function generateFlowReportPdf(opts: PdfOptions) {
   const project = useProjectStore.getState().project
-  const benchmarks = useBenchmarkStore.getState().benchmarks as BenchmarkWithDetail[]
+  const benchmarks = getReportBenchmarks() as BenchmarkWithDetail[]
   const operations: OperationLog[] = useOperationStore.getState().operations
   const branches = project.branches.filter((b) => opts.branchIds.includes(b.id))
   const filename = reportFileName(project.name)

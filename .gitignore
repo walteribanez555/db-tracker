@@ -26,6 +26,7 @@ dist-ssr
 # Builds
 dist-electron
 dist-server
+dist-mcp
 release
 
 # Artefactos de pruebas de navegador

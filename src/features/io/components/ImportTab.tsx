@@ -124,7 +124,7 @@ export function ImportTab() {
   }
 
   return (
-    <div className="grid gap-10 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
+    <div className="grid gap-10 max-lg:grid-cols-1 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
       {/* Entrada */}
       <section className="min-w-0 space-y-5">
         <div
@@ -148,7 +148,7 @@ export function ImportTab() {
           <p className="text-sm">
             Arrastra un archivo <span className="text-muted-foreground">.sql, .dbml o .json</span>
           </p>
-          <Button size="sm" variant="outline" onClick={() => fileInput.current?.click()}>
+          <Button className="max-md:h-11" size="sm" variant="outline" onClick={() => fileInput.current?.click()}>
             <FileUp />
             Elegir archivo
           </Button>
@@ -186,7 +186,7 @@ export function ImportTab() {
           <div className="space-y-1.5">
             <Label htmlFor="imp-format">Formato</Label>
             <Select value={format} onValueChange={(v) => setFormat(v as FormatChoice)}>
-              <SelectTrigger id="imp-format" className="w-full">
+              <SelectTrigger id="imp-format" className="max-md:data-[size=default]:h-11 w-full">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -203,7 +203,7 @@ export function ImportTab() {
             <div className="space-y-1.5">
               <Label htmlFor="imp-dialect">Dialecto</Label>
               <Select value={dialect} onValueChange={(v) => setDialect(v as DialectChoice)}>
-                <SelectTrigger id="imp-dialect" className="w-full">
+                <SelectTrigger id="imp-dialect" className="max-md:data-[size=default]:h-11 w-full">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -275,13 +275,13 @@ export function ImportTab() {
 
             <div className="space-y-4 border-t pt-5">
               {result.project && projectMode === 'project' ? (
-                <Button onClick={() => setRestoreOpen(true)} disabled={running}>
+                <Button className="max-md:h-11" onClick={() => setRestoreOpen(true)} disabled={running}>
                   Restaurar proyecto…
                 </Button>
               ) : (
                 <>
                   <ImportTargetForm idPrefix="imp" value={target} onChange={setTarget} />
-                  <Button onClick={doImport} disabled={running || (!result.schema.tables.length && !result.schema.views.length)}>
+                  <Button className="max-md:h-11" onClick={doImport} disabled={running || (!result.schema.tables.length && !result.schema.views.length)}>
                     Importar
                   </Button>
                 </>
@@ -301,10 +301,10 @@ export function ImportTab() {
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
-            <Button variant="ghost" onClick={() => setRestoreOpen(false)}>
+            <Button className="max-md:h-11" variant="ghost" onClick={() => setRestoreOpen(false)}>
               Cancelar
             </Button>
-            <Button variant="destructive" onClick={doRestore}>
+            <Button className="max-md:h-11" variant="destructive" onClick={doRestore}>
               Reemplazar proyecto
             </Button>
           </DialogFooter>

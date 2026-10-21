@@ -2,9 +2,10 @@ import type { NodeProps } from '@xyflow/react'
 import { Eye } from 'lucide-react'
 import { memo } from 'react'
 
-import { Popover, PopoverAnchor, PopoverContent } from '@/components/ui/popover'
+import { Popover, PopoverAnchor } from '@/components/ui/popover'
 import { cn } from '@/lib/utils'
 
+import { AdaptivePopoverContent } from '../components/AdaptivePopoverContent'
 import { ViewSqlPanel } from '../components/inline/ViewSqlPanel'
 import { MAX_VIEW_ROWS, ROW_HEIGHT, TABLE_HEADER_HEIGHT, VIEW_WIDTH } from '../lib/constants'
 import { startEditing, stopEditing, useEditing, useEditorUi } from '../lib/editorStore'
@@ -61,9 +62,18 @@ function ViewNodeComponent({ data, selected }: NodeProps<ViewFlowNode>) {
         </div>
       </PopoverAnchor>
       {editing && (
-        <PopoverContent side="right" align="start" sideOffset={12} className="w-[34rem]">
+        <AdaptivePopoverContent
+          side="right"
+          align="start"
+          sideOffset={12}
+          className="w-[34rem]"
+          title={`Vista ${view.name}`}
+          description="Nombre, SQL y detección de columnas de la vista"
+          mobileLayout="full"
+          onClose={stopEditing}
+        >
           <ViewSqlPanel viewId={view.id} />
-        </PopoverContent>
+        </AdaptivePopoverContent>
       )}
     </Popover>
   )

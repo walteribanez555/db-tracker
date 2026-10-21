@@ -147,6 +147,23 @@
   animation: none;
   mix-blend-mode: normal;
 }
+/* Sin el fundido por defecto del grupo raíz: solo se ve el círculo. */
+::view-transition-group(root) {
+  animation-duration: 0s;
+}
+
+/* Fondo también en <html>: durante el cambio de tema no asoma el fondo de la ventana (Electron). */
+html {
+  background-color: var(--background);
+}
+
+/* Mientras cambia el tema, sin transiciones de color por elemento (solo anima el círculo). */
+.theme-switching,
+.theme-switching *:not([data-theme-toggle], [data-theme-toggle] *),
+.theme-switching *:not([data-theme-toggle], [data-theme-toggle] *)::before,
+.theme-switching *:not([data-theme-toggle], [data-theme-toggle] *)::after {
+  transition: none !important;
+}
 ::view-transition-old(root) {
   z-index: 1;
 }

@@ -5,10 +5,12 @@ import { SharedCodeEditor } from '@/components/code/shared-code-editor'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Popover, PopoverAnchor, PopoverContent } from '@/components/ui/popover'
+import { Popover, PopoverAnchor } from '@/components/ui/popover'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Switch } from '@/components/ui/switch'
+import { AdaptivePopoverContent } from '@/features/editor/components/AdaptivePopoverContent'
 import { parseViewSources } from '@/features/normalization/lib/views'
+import { useIsMobile } from '@/hooks/use-mobile'
 import { cn } from '@/lib/utils'
 import { useProjectStore } from '@/store/project'
 import type { DbFunction, Trigger, TriggerEvent, TriggerTiming, View } from '@/types/schema'
@@ -50,11 +52,16 @@ export function InlineEditor({
 }) {
   const open = useCanvasUi((s) => s.editing?.kind === kind && s.editing.id === id)
   const setEditing = useCanvasUi((s) => s.setEditing)
+  // Móvil: hoja inferior (trigger) o pantalla completa (función y vista, con editor SQL).
+  const isMobile = useIsMobile()
   return (
     <Popover open={open} onOpenChange={(o) => !o && setEditing(null)}>
       <PopoverAnchor asChild>{children}</PopoverAnchor>
       {open && (
-        <PopoverContent
+        <AdaptivePopoverContent
+          title={title}
+          onClose={() => setEditing(null)}
+          mobileLayout={kind === 'trigger' ? 'sheet' : 'full'}
           side="right"
           align="start"
           sideOffset={10}
@@ -69,10 +76,12 @@ export function InlineEditor({
           }}
           aria-label={title}
         >
-          <p className="text-xs text-muted-foreground">{title}</p>
+          {!isMobile && <p className="text-xs text-muted-foreground">{title}</p>}
           {editor()}
-          <p className="text-[11px] text-muted-foreground">Los cambios se guardan al momento en el borrador. Esc para cerrar.</p>
-        </PopoverContent>
+          <p className="text-[11px] text-muted-foreground max-md:pt-3">
+            Los cambios se guardan al momento en el borrador.{isMobile ? '' : ' Esc para cerrar.'}
+          </p>
+        </AdaptivePopoverContent>
       )}
     </Popover>
   )

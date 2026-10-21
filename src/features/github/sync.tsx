@@ -5,6 +5,7 @@ import { CollapsibleSection } from '@/components/layout/collapsible-section'
 import { Button } from '@/components/ui/button'
 import { Switch } from '@/components/ui/switch'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
+import { useIsMobile } from '@/hooks/use-mobile'
 import { cn } from '@/lib/utils'
 import { useProjectStore } from '@/store/project'
 import type { GithubLink, Project } from '@/types/schema'
@@ -68,6 +69,7 @@ export function SyncSection({ link, runner }: { link: GithubLink; runner: Return
   const [panel, setPanel] = useState<'none' | 'pull' | 'confirm-push'>('none')
   const [aheadOf, setAheadOf] = useState<string[]>([])
   const [checking, setChecking] = useState(false)
+  const isMobile = useIsMobile()
 
   const loadRemote = useCallback(() => {
     const key = `${link.owner}/${link.repo}`
@@ -126,62 +128,102 @@ export function SyncSection({ link, runner }: { link: GithubLink; runner: Return
         contentClassName={CONTENT}
       >
         {remoteError && <p className="mb-3 text-sm text-destructive">{remoteError}</p>}
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Flujo</TableHead>
-              <TableHead className="text-right">Versiones</TableHead>
-              <TableHead>Estado</TableHead>
-              <TableHead className="text-right">En GitHub</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {project.branches.map((b, i) => {
+        {isMobile ? (
+          // Móvil: lista en lugar de tabla (nombre y estado arriba; versiones y enlaces debajo).
+          <ul className="divide-y border-y">
+            {project.branches.map((b) => {
               const st = branchStatus(project, b.id, remote, run?.refs ?? [])
               const count = project.versions.filter((v) => v.branchId === b.id).length
               const published = remoteNames.has(b.name)
               return (
-                <TableRow
-                  key={b.id}
-                  style={i < 8 ? { animationDelay: `${i * 30}ms` } : undefined}
-                  className="transition-colors animate-in fade-in slide-in-from-top-1 fill-mode-backwards duration-200"
-                >
-                  <TableCell>
-                    <div className="flex items-center gap-2">
-                      <span
-                        className="size-2.5 shrink-0 rounded-full bg-(--branch) dark:bg-[color-mix(in_oklab,var(--branch),white_40%)]"
-                        style={{ '--branch': b.color } as React.CSSProperties}
-                      />
-                      <span className="font-mono">{b.name}</span>
-                    </div>
-                    {b.description && <div className="mt-0.5 max-w-md truncate pl-4.5 text-xs text-muted-foreground">{b.description}</div>}
-                  </TableCell>
-                  <TableCell className="text-right tabular-nums">{count}</TableCell>
-                  <TableCell>
-                    <span key={st.label} className={cn('flex items-center gap-2 animate-in fade-in duration-200', LABEL[st.tone])}>
-                      <span className={cn('size-1.5 shrink-0 rounded-full transition-colors', DOT[st.tone])} />
-                      {st.label}
+                <li key={b.id} className="space-y-1 py-3">
+                  <div className="flex items-center gap-2">
+                    <span
+                      className="size-2.5 shrink-0 rounded-full bg-(--branch) dark:bg-[color-mix(in_oklab,var(--branch),white_40%)]"
+                      style={{ '--branch': b.color } as React.CSSProperties}
+                    />
+                    <span className="min-w-0 truncate font-mono text-sm">{b.name}</span>
+                    <span className="ml-auto shrink-0 text-xs text-muted-foreground tabular-nums">{plural(count, 'versión', 'versiones')}</span>
+                  </div>
+                  {b.description && <p className="truncate pl-4.5 text-xs text-muted-foreground">{b.description}</p>}
+                  <div className="flex items-center gap-3 pl-4.5 text-sm">
+                    <span className={cn('flex min-w-0 items-center gap-2', LABEL[st.tone])}>
+                      <span className={cn('size-1.5 shrink-0 rounded-full', DOT[st.tone])} />
+                      <span className="truncate">{st.label}</span>
                     </span>
-                  </TableCell>
-                  <TableCell className="text-right">
-                    {published ? (
-                      <span className="inline-flex gap-3 text-sm">
-                        <a className="transition-colors hover:text-brand hover:underline" href={githubUrls.branch(link.owner, link.repo, b.name)} target="_blank" rel="noreferrer">
+                    {published && (
+                      <span className="ml-auto flex shrink-0">
+                        <a className="flex h-11 items-center px-2 hover:text-brand hover:underline" href={githubUrls.branch(link.owner, link.repo, b.name)} target="_blank" rel="noreferrer">
                           Rama
                         </a>
-                        <a className="transition-colors hover:text-brand hover:underline" href={githubUrls.commits(link.owner, link.repo, b.name)} target="_blank" rel="noreferrer">
+                        <a className="flex h-11 items-center px-2 hover:text-brand hover:underline" href={githubUrls.commits(link.owner, link.repo, b.name)} target="_blank" rel="noreferrer">
                           Commits
                         </a>
                       </span>
-                    ) : (
-                      <span className="text-muted-foreground">—</span>
                     )}
-                  </TableCell>
-                </TableRow>
+                  </div>
+                </li>
               )
             })}
-          </TableBody>
-        </Table>
+          </ul>
+        ) : (
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Flujo</TableHead>
+                <TableHead className="text-right">Versiones</TableHead>
+                <TableHead>Estado</TableHead>
+                <TableHead className="text-right">En GitHub</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {project.branches.map((b, i) => {
+                const st = branchStatus(project, b.id, remote, run?.refs ?? [])
+                const count = project.versions.filter((v) => v.branchId === b.id).length
+                const published = remoteNames.has(b.name)
+                return (
+                  <TableRow
+                    key={b.id}
+                    style={i < 8 ? { animationDelay: `${i * 30}ms` } : undefined}
+                    className="transition-colors animate-in fade-in slide-in-from-top-1 fill-mode-backwards duration-200"
+                  >
+                    <TableCell>
+                      <div className="flex items-center gap-2">
+                        <span
+                          className="size-2.5 shrink-0 rounded-full bg-(--branch) dark:bg-[color-mix(in_oklab,var(--branch),white_40%)]"
+                          style={{ '--branch': b.color } as React.CSSProperties}
+                        />
+                        <span className="font-mono">{b.name}</span>
+                      </div>
+                      {b.description && <div className="mt-0.5 max-w-md truncate pl-4.5 text-xs text-muted-foreground">{b.description}</div>}
+                    </TableCell>
+                    <TableCell className="text-right tabular-nums">{count}</TableCell>
+                    <TableCell>
+                      <span key={st.label} className={cn('flex items-center gap-2 animate-in fade-in duration-200', LABEL[st.tone])}>
+                        <span className={cn('size-1.5 shrink-0 rounded-full transition-colors', DOT[st.tone])} />
+                        {st.label}
+                      </span>
+                    </TableCell>
+                    <TableCell className="text-right">
+                      {published ? (
+                        <span className="inline-flex gap-3 text-sm">
+                          <a className="transition-colors hover:text-brand hover:underline" href={githubUrls.branch(link.owner, link.repo, b.name)} target="_blank" rel="noreferrer">
+                            Rama
+                          </a>
+                          <a className="transition-colors hover:text-brand hover:underline" href={githubUrls.commits(link.owner, link.repo, b.name)} target="_blank" rel="noreferrer">
+                            Commits
+                          </a>
+                        </span>
+                      ) : (
+                        <span className="text-muted-foreground">—</span>
+                      )}
+                    </TableCell>
+                  </TableRow>
+                )
+              })}
+            </TableBody>
+          </Table>
+        )}
       </CollapsibleSection>
 
       <CollapsibleSection
@@ -198,7 +240,7 @@ export function SyncSection({ link, runner }: { link: GithubLink; runner: Return
           segundo plano: solo cuando pulsas un botón.
         </p>
         <div className="mt-4 flex flex-wrap items-center gap-3">
-          <Button onClick={() => push(false)} disabled={running || checking || !project.versions.length}>
+          <Button className="max-md:h-11" onClick={() => push(false)} disabled={running || checking || !project.versions.length}>
             {(running || checking) && <Loader2 className="animate-spin" />}
             {running ? 'Subiendo…' : 'Subir'}
             {!running && totalPending > 0 && (
@@ -207,7 +249,7 @@ export function SyncSection({ link, runner }: { link: GithubLink; runner: Return
               </span>
             )}
           </Button>
-          <Button variant="outline" onClick={() => setPanel((p) => (p === 'pull' ? 'none' : 'pull'))} disabled={running}>
+          <Button className="max-md:h-11" variant="outline" onClick={() => setPanel((p) => (p === 'pull' ? 'none' : 'pull'))} disabled={running}>
             Bajar
           </Button>
           <label className="ml-2 flex items-center gap-2 text-sm" title="Reescribe ramas remotas que no avanzan en fast-forward (equivale a push --force).">
@@ -237,14 +279,15 @@ export function SyncSection({ link, runner }: { link: GithubLink; runner: Return
                 : 'Si subes ahora, esas ramas no se actualizarán (no es fast-forward).'}
             </p>
             <div className="flex flex-wrap gap-2">
-              <Button onClick={() => setPanel('pull')}>Bajar primero</Button>
+              <Button className="max-md:h-11" onClick={() => setPanel('pull')}>Bajar primero</Button>
               <Button
+                className="max-md:h-11"
                 variant={force ? 'destructive' : 'outline'}
                 onClick={() => push(true)}
               >
                 {force ? 'Subir forzando' : 'Subir de todos modos'}
               </Button>
-              <Button variant="ghost" onClick={() => setPanel('none')}>
+              <Button className="max-md:h-11" variant="ghost" onClick={() => setPanel('none')}>
                 Cancelar
               </Button>
             </div>

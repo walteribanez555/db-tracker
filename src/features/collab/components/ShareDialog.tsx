@@ -14,7 +14,7 @@ import { useProjectStore } from '@/store/project'
 
 import { CollabApiError, collabApi, type CollabStatus } from '../api'
 import { copyText } from '../lib/clipboard'
-import { hostDisplayName, joinAsHost, stopSharing } from '../lib/host'
+import { hostDisplayName, joinAsHost, joinedTo, stopSharing } from '../lib/host'
 import { isLoopbackOrigin, useCollabPrefs } from '../lib/identity'
 import { ParticipantList } from './ParticipantList'
 
@@ -102,12 +102,15 @@ function ShareBody({ onClose }: { onClose: () => void }) {
 
   const connectedAsHost = isHost && status !== 'idle'
   const participants = connectedAsHost && storeParticipants.length ? storeParticipants : polled
+  const agentsActive = participants.some((p) => p.kind === 'agent' && p.status === 'active')
 
   const share = async () => {
     setBusy('share')
     setError(null)
     try {
+      // Con una sesión local de agentes abierta, el servidor la amplía a la red sin cortar a nadie.
       const s = await collabApi.share({
+        network: 'lan',
         projectName,
         hostName: hostDisplayName(),
         autoApprove: !approveEach,
@@ -116,7 +119,7 @@ function ShareBody({ onClose }: { onClose: () => void }) {
       setSession(s)
       void refresh()
       try {
-        await joinAsHost(s)
+        if (!joinedTo(s.id)) await joinAsHost(s)
       } catch (err) {
         setError(`La sesión está abierta, pero esta ventana no pudo conectarse: ${err instanceof Error ? err.message : 'error desconocido'}.`)
       }
@@ -141,9 +144,11 @@ function ShareBody({ onClose }: { onClose: () => void }) {
     setError(null)
     try {
       const s = await collabApi.share({
+        // Sin `network` el servidor entiende 'lan': una sesión local de agentes se abriría a la red.
+        network: session.network ?? 'lan',
         projectName: session.projectName,
         hostName: session.hostName,
-        port: session.port,
+        port: session.network === 'local' ? undefined : session.port,
         autoApprove: !next.approveEach,
         shareRemoteApis: !next.localApisOnly,
       })
@@ -162,6 +167,13 @@ function ShareBody({ onClose }: { onClose: () => void }) {
     setBusy('stop')
     setError(null)
     try {
+      // Con agentes conectados se cierra solo la red: la sesión sigue en este equipo para ellos.
+      if (session && agentsActive) {
+        setSession(await collabApi.share({ network: 'local', projectName: session.projectName, hostName: session.hostName }))
+        void refresh()
+        toast('Ya no compartes en la red', { description: 'Los agentes de Claude Code siguen conectados en este equipo.' })
+        return
+      }
       await stopSharing()
       setSession(null)
       setPolled([])
@@ -193,7 +205,8 @@ function ShareBody({ onClose }: { onClose: () => void }) {
     } else toast.error('No se pudo copiar. Selecciona el enlace y cópialo a mano.')
   }
 
-  const sharing = session !== null
+  // Una sesión 'local' (solo agentes MCP en este equipo) no cuenta como compartir en la red.
+  const sharing = session !== null && session.network !== 'local'
 
   return (
     <>
@@ -232,7 +245,11 @@ function ShareBody({ onClose }: { onClose: () => void }) {
             <span>
               <span className="block text-sm font-medium">Compartir en la red local</span>
               <span className="block text-xs text-muted-foreground">
-                {sharing ? 'Escuchando en la red. Cualquiera con el código o el enlace puede pedir entrada.' : 'Abre este proyecto a los equipos de tu red.'}
+                {sharing
+                  ? 'Escuchando en la red. Cualquiera con el código o el enlace puede pedir entrada.'
+                  : session
+                    ? 'Ahora solo hay una sesión local para agentes. Compartir la abre también a tu red, sin cortar a nadie.'
+                    : 'Abre este proyecto a los equipos de tu red.'}
               </span>
             </span>
             <Switch
@@ -250,7 +267,7 @@ function ShareBody({ onClose }: { onClose: () => void }) {
             </p>
           )}
 
-          {session && (
+          {sharing && session && (
             <div className="space-y-4 animate-in fade-in duration-200 motion-reduce:animate-none">
               <Separator />
               <div className="flex items-start justify-between gap-4">

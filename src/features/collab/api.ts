@@ -99,3 +99,68 @@ export function parseJoinLink(link: string): { baseUrl: string; code: string | n
     return null
   }
 }
+
+/* ───────────────────────── MCP (agentes de Claude Code) ───────────────────────── */
+// Solo loopback, como /api/collab/status. Contrato acordado con server/mcp:
+//   GET  /api/mcp/info          → McpInfo (token completo solo si la petición llega por loopback)
+//   GET  /api/mcp/token         → { token }  (respaldo si info no trae el token)
+//   POST /api/mcp/token/rotate  → { token?, tokenHint? }
+
+export interface McpInfo {
+  /** URL de la app/API local, p. ej. http://127.0.0.1:8787 */
+  url: string
+  /** Endpoint MCP (Streamable HTTP), p. ej. http://127.0.0.1:8787/mcp */
+  mcpUrl: string
+  /** Pista del token para reconocerlo sin mostrarlo (p. ej. "…a3f9"). */
+  tokenHint: string
+  connectedAgents: number
+  /** Token completo: solo en loopback. */
+  token?: string
+  /** Carpeta del repo (para el puente stdio de Claude Desktop y el workflow). */
+  repoDir?: string
+  /** true = respuesta simulada en desarrollo (el servidor aún no expone /api/mcp). */
+  simulated?: boolean
+}
+
+const MCP = '/api/mcp'
+
+/** Simulación solo en desarrollo, mientras el servidor no tenga /api/mcp. */
+const DEV_SIMULATE = import.meta.env.DEV
+let simToken = 'dbt_dev_simulado_7f3c9a1e5b2d4c6f8a0e'
+const simInfo = (): McpInfo => ({
+  url: 'http://127.0.0.1:8787',
+  mcpUrl: 'http://127.0.0.1:8787/mcp',
+  tokenHint: `…${simToken.slice(-4)}`,
+  connectedAgents: 0,
+  token: simToken,
+  simulated: true,
+})
+const canSimulate = (err: unknown) => DEV_SIMULATE && err instanceof CollabApiError && (err.code === 'unavailable' || err.code === 'not_found')
+
+export const mcpApi = {
+  info: async (): Promise<McpInfo> => {
+    try {
+      return await request<McpInfo>(`${MCP}/info`, {}, { notFound: 'unavailable' })
+    } catch (err) {
+      if (canSimulate(err)) return simInfo()
+      throw err
+    }
+  },
+  /** Token completo: el de info o, si no lo trae, GET /api/mcp/token. null si el servidor no lo entrega. */
+  token: async (info: McpInfo | null): Promise<string | null> => {
+    if (info?.token) return info.token
+    if (info?.simulated) return simToken
+    try {
+      return (await request<{ token: string }>(`${MCP}/token`, {}, { notFound: 'unavailable' })).token ?? null
+    } catch {
+      return null
+    }
+  },
+  rotate: async (simulated = false): Promise<{ token?: string; tokenHint?: string }> => {
+    if (simulated) {
+      simToken = `dbt_dev_simulado_${Math.random().toString(16).slice(2, 14)}${Date.now().toString(16)}`
+      return { token: simToken, tokenHint: `…${simToken.slice(-4)}` }
+    }
+    return request(`${MCP}/token/rotate`, { method: 'POST' })
+  },
+}

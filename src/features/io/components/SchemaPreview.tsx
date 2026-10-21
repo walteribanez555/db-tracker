@@ -92,9 +92,9 @@ export function SchemaPreview({
                 </span>
               </button>
               {isOpen && (
-                <div className={cn('pb-3 pl-8', fadeIn)}>
+                <div className={cn('pb-3 pl-8 max-md:overflow-x-auto max-md:pl-4', fadeIn)}>
                   {t.comment && <p className="mb-2 text-xs text-muted-foreground">{t.comment}</p>}
-                  <table className="w-full text-xs">
+                  <table className="w-full text-xs max-md:w-max max-md:min-w-full">
                     <tbody>
                       {t.columns.map((c) => (
                         <tr key={c.id} className="align-baseline">

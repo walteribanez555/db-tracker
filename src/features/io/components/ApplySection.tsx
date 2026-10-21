@@ -84,12 +84,12 @@ export function ApplySection({
       <div className="flex flex-wrap items-center gap-2">
         <span className="mr-auto text-xs text-muted-foreground">{statements.length} sentencia(s)</span>
         {pg && (
-          <Button variant="outline" disabled={!statements.length || !!busy} onClick={() => run(true)}>
+          <Button className="max-md:h-11" variant="outline" disabled={!statements.length || !!busy} onClick={() => run(true)}>
             {busy === 'dry' ? <Loader2 className="animate-spin" /> : <ShieldCheck />}
             Validar sin aplicar
           </Button>
         )}
-        <Button variant="destructive" disabled={!statements.length || !!busy} onClick={() => setOpen(true)}>
+        <Button className="max-md:h-11" variant="destructive" disabled={!statements.length || !!busy} onClick={() => setOpen(true)}>
           {busy === 'apply' ? <Loader2 className="animate-spin" /> : <Play />}
           Aplicar en {connection.database}…
         </Button>
@@ -168,13 +168,13 @@ export function ApplySection({
             <Label htmlFor="apply-confirm">
               Escribe <span className="font-mono">{connection.database}</span> para confirmar
             </Label>
-            <Input id="apply-confirm" value={confirmText} onChange={(e) => setConfirmText(e.target.value)} autoComplete="off" />
+            <Input className="max-md:h-11" id="apply-confirm" value={confirmText} onChange={(e) => setConfirmText(e.target.value)} autoComplete="off" />
           </div>
           <DialogFooter>
-            <Button variant="ghost" onClick={() => setOpen(false)}>
+            <Button className="max-md:h-11" variant="ghost" onClick={() => setOpen(false)}>
               Cancelar
             </Button>
-            <Button variant="destructive" disabled={confirmText !== connection.database || !!busy} onClick={() => run(false)}>
+            <Button className="max-md:h-11" variant="destructive" disabled={confirmText !== connection.database || !!busy} onClick={() => run(false)}>
               {busy === 'apply' && <Loader2 className="animate-spin" />}
               Aplicar
             </Button>

@@ -393,5 +393,5 @@ export function useCanvasMenu(onSimulate: () => void) {
     ),
   }
 
-  return { handlers, element: <ActionMenu {...menu.menuProps} groups={groups} /> }
+  return { handlers, longPressHandlers: menu.longPressHandlers, element: <ActionMenu {...menu.menuProps} groups={groups} /> }
 }

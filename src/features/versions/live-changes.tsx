@@ -7,6 +7,7 @@ import { toast } from 'sonner'
 import { CodeDiff, sqlLanguageFor } from '@/components/code'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { useIsMobile } from '@/hooks/use-mobile'
 import { cn } from '@/lib/utils'
 import { emptySchema, useCurrentBranch, useProjectStore } from '@/store/project'
 
@@ -26,7 +27,7 @@ const ENTER = 'animate-in fade-in slide-in-from-top-1 duration-200 ease-out fill
 const EXIT = 'animate-out fade-out duration-200 ease-out fill-mode-forwards pointer-events-none'
 
 function Connector() {
-  return <div aria-hidden className="h-px w-5 shrink-0 self-center bg-border" />
+  return <div aria-hidden className="h-px w-5 shrink-0 self-center bg-border max-md:h-3 max-md:w-px" />
 }
 
 function Line({ line, exiting }: { line: ChangeLine; exiting: boolean }) {
@@ -60,13 +61,13 @@ function ChangeColumn({ change, exiting, onOpen }: { change: ObjectChange; exiti
     </>
   )
   return (
-    <div className={cn('flex w-56 shrink-0 flex-col rounded-md border bg-background', exiting ? EXIT : ENTER)}>
+    <div className={cn('flex w-56 shrink-0 flex-col rounded-md border bg-background max-md:w-full', exiting ? EXIT : ENTER)}>
       {change.inDraft ? (
         <button
           type="button"
           onClick={() => onOpen(change)}
           title={`Abrir ${KIND_LABEL[change.objectKind]} ${change.name} en el editor`}
-          className="flex items-center gap-1.5 border-b px-2.5 py-1.5 text-left transition-colors hover:bg-muted/60 focus-visible:bg-muted focus-visible:outline-none"
+          className="flex items-center gap-1.5 border-b px-2.5 py-1.5 text-left transition-colors hover:bg-muted/60 focus-visible:bg-muted focus-visible:outline-none max-md:min-h-11"
         >
           {header}
         </button>
@@ -92,6 +93,7 @@ function SqlDiff({ baseLabel }: { baseLabel: string }) {
   const draft = useProjectStore((s) => s.draft)
   const base = useProjectStore((s) => (s.baseVersionId ? s.project.versions.find((v) => v.id === s.baseVersionId)?.schema : undefined))
   const dialect = useProjectStore((s) => s.project.dialect)
+  const isMobile = useIsMobile()
   const original = useMemo(() => ddlOf(base ?? emptySchema(dialect)), [base, dialect])
   const modified = useMemo(() => ddlOf(draft), [draft])
   return (
@@ -99,9 +101,10 @@ function SqlDiff({ baseLabel }: { baseLabel: string }) {
       original={original}
       modified={modified}
       language={sqlLanguageFor(dialect)}
-      originalLabel={baseLabel}
+      originalLabel={isMobile ? baseLabel.split(' · ')[0] : baseLabel}
       modifiedLabel="borrador"
-      height={540}
+      height={isMobile ? Math.max(320, window.innerHeight - 220) : 540}
+      sideBySide={!isMobile}
     />
   )
 }
@@ -143,10 +146,14 @@ export function LiveChanges() {
   }
 
   return (
-    <div className="flex h-full min-w-0 gap-3 p-3">
-      <div className="flex min-w-0 flex-1 items-stretch overflow-x-auto pb-1" aria-live="polite">
+    // En móvil (hoja estrecha) el flujo se apila en vertical y las acciones pasan debajo.
+    <div className="flex h-full min-w-0 gap-3 p-3 max-md:flex-col">
+      <div
+        className="flex min-w-0 flex-1 items-stretch overflow-x-auto pb-1 max-md:min-h-0 max-md:flex-col max-md:overflow-x-hidden max-md:overflow-y-auto max-md:overscroll-contain"
+        aria-live="polite"
+      >
         {/* Nodo: versión base */}
-        <div className="flex w-52 shrink-0 flex-col justify-center gap-1 rounded-md border px-3 py-2">
+        <div className="flex w-52 shrink-0 flex-col justify-center gap-1 rounded-md border px-3 py-2 max-md:w-full">
           <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
             <span aria-hidden className="size-2 rounded-full" style={{ background: laneColor(baseBranch?.color ?? branch.color) }} />
             <span className="truncate font-mono">{baseBranch?.name ?? branch.name}</span>
@@ -159,7 +166,7 @@ export function LiveChanges() {
         {columns.length === 0 ? (
           <>
             <Connector />
-            <p className="self-center px-3 text-xs text-muted-foreground">
+            <p className="self-center px-3 text-xs text-muted-foreground max-md:py-1 max-md:text-center">
               {storeDirty ? (
                 moved > 0 ? (
                   <>
@@ -178,7 +185,7 @@ export function LiveChanges() {
           </>
         ) : (
           columns.map((c) => (
-            <div key={c.key} className="flex shrink-0 items-stretch">
+            <div key={c.key} className="flex shrink-0 items-stretch max-md:flex-col">
               <Connector />
               <ChangeColumn change={c.item} exiting={c.exiting} onOpen={open} />
             </div>
@@ -187,7 +194,7 @@ export function LiveChanges() {
 
         <Connector />
         {/* Nodo: borrador */}
-        <div className={cn('flex w-40 shrink-0 flex-col justify-center gap-1 rounded-md border px-3 py-2', dirty && 'border-brand/60')}>
+        <div className={cn('flex w-40 shrink-0 flex-col justify-center gap-1 rounded-md border px-3 py-2 max-md:w-full', dirty && 'border-brand/60')}>
           <div className="flex items-center gap-1.5 text-xs font-medium">
             <ArrowRight className="size-3.5 text-muted-foreground" aria-hidden />
             Borrador
@@ -204,16 +211,16 @@ export function LiveChanges() {
         </div>
       </div>
 
-      <div className="flex w-44 shrink-0 flex-col justify-center gap-2 border-l pl-3">
-        <Button size="sm" className="gap-1.5" disabled={!dirty} onClick={() => setCommitting(true)}>
+      <div className="flex w-44 shrink-0 flex-col justify-center gap-2 border-l pl-3 max-md:grid max-md:w-full max-md:grid-cols-2 max-md:border-t max-md:border-l-0 max-md:pt-3 max-md:pl-0">
+        <Button size="sm" className="gap-1.5 max-md:col-span-2 max-md:h-11" disabled={!dirty} onClick={() => setCommitting(true)}>
           <GitCommitHorizontal className="size-3.5" />
           Confirmar versión
         </Button>
-        <Button size="sm" variant="outline" className="gap-1.5" disabled={!dirty} onClick={discard}>
+        <Button size="sm" variant="outline" className="gap-1.5 max-md:h-11" disabled={!dirty} onClick={discard}>
           <Undo2 className="size-3.5" />
           Descartar
         </Button>
-        <Button size="sm" variant="ghost" className="gap-1.5" onClick={() => setShowSql(true)}>
+        <Button size="sm" variant="ghost" className="gap-1.5 max-md:h-11" onClick={() => setShowSql(true)}>
           <FileCode2 className="size-3.5" />
           Ver SQL
         </Button>
@@ -221,7 +228,7 @@ export function LiveChanges() {
 
       <CommitDialog open={committing} onOpenChange={setCommitting} />
       <Dialog open={showSql} onOpenChange={setShowSql}>
-        <DialogContent className="sm:max-w-6xl">
+        <DialogContent mobileLayout="fullscreen" className="sm:max-w-6xl">
           <DialogHeader>
             <DialogTitle>DDL: base → borrador</DialogTitle>
             <DialogDescription>

@@ -49,7 +49,7 @@ export function RepoSection({ login, onCreate }: Props) {
         dura solo esta sesión: al cerrar la pestaña o la app se olvida.
       </p>
       <Tabs defaultValue="create" className="mt-4">
-        <TabsList>
+        <TabsList className="max-md:w-full max-md:group-data-horizontal/tabs:h-11">
           <TabsTrigger value="create">Crear repositorio</TabsTrigger>
           <TabsTrigger value="link">Vincular existente</TabsTrigger>
           <TabsTrigger value="pull">Bajar de un repositorio</TabsTrigger>
@@ -146,12 +146,12 @@ function CreateRepoForm({
           <Label htmlFor="repo-name">Nombre</Label>
           <div className="flex items-center gap-1.5">
             <span className="font-mono text-sm text-muted-foreground">{login}/</span>
-            <Input id="repo-name" value={name} onChange={(e) => setName(e.target.value)} className="font-mono" aria-invalid={error?.code === 'repo_exists'} />
+            <Input id="repo-name" value={name} onChange={(e) => setName(e.target.value)} className="max-md:h-11 font-mono" aria-invalid={error?.code === 'repo_exists'} />
           </div>
         </div>
         <div className="space-y-1.5">
           <Label htmlFor="repo-desc">Descripción</Label>
-          <Input id="repo-desc" value={description} onChange={(e) => setDescription(e.target.value)} />
+          <Input className="max-md:h-11" id="repo-desc" value={description} onChange={(e) => setDescription(e.target.value)} />
         </div>
       </div>
       <div className="flex flex-wrap gap-x-8 gap-y-3 text-sm">
@@ -172,7 +172,7 @@ function CreateRepoForm({
               type="button"
               variant="link"
               size="sm"
-              className="h-auto px-1"
+              className="max-md:h-11 h-auto px-1"
               onClick={() =>
                 onLinkExisting({ owner: login, repo: name.trim(), url: githubUrls.repo(login, name.trim()), defaultBranch: 'main' })
               }
@@ -183,7 +183,7 @@ function CreateRepoForm({
         </div>
       )}
       <div className="flex items-center gap-3">
-        <Button type="submit" disabled={busy || !name.trim()}>
+        <Button className="max-md:h-11" type="submit" disabled={busy || !name.trim()}>
           {busy && <Loader2 className="animate-spin" />}
           Crear repositorio con la base de datos de ejemplo
         </Button>
@@ -229,8 +229,8 @@ export function LinkRepoList({
   return (
     <div className="max-w-3xl space-y-3">
       <div className="flex items-center gap-2">
-        <Input placeholder="Buscar repositorio…" value={query} onChange={(e) => setQuery(e.target.value)} className="max-w-sm" />
-        <Button variant="ghost" size="icon-sm" aria-label="Recargar" onClick={() => {
+        <Input placeholder="Buscar repositorio…" value={query} onChange={(e) => setQuery(e.target.value)} className="max-md:h-11 max-w-sm" />
+        <Button className="max-md:size-11" variant="ghost" size="icon-sm" aria-label="Recargar" onClick={() => {
             setError(null)
             setRepos(null)
             setNonce((n) => n + 1)
@@ -259,7 +259,7 @@ export function LinkRepoList({
                 </div>
               </div>
               {r.canPush || !requirePush ? (
-                <Button variant="outline" size="sm" onClick={() => onLink(linkFromRepo(r))}>
+                <Button className="max-md:h-11" variant="outline" size="sm" onClick={() => onLink(linkFromRepo(r))}>
                   {actionLabel}
                 </Button>
               ) : (

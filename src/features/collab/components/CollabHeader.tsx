@@ -1,4 +1,4 @@
-import { ChevronDown, Link2, LogIn, LogOut, Share2, Users } from 'lucide-react'
+import { Bot, ChevronDown, Link2, LogIn, LogOut, MoreHorizontal, Share2, Users } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { toast } from 'sonner'
 
@@ -16,13 +16,15 @@ import {
 import { cn } from '@/lib/utils'
 
 import { useActivityTracker } from '../activity'
+import { agentes, isAgent } from '../agents'
 import { collabApi } from '../api'
 import { STATUS_LABEL, TONE_DOT, statusTone, useActiveParticipants } from '../hooks'
 import { copyText } from '../lib/clipboard'
-import { joinAsHost, stopSharing } from '../lib/host'
+import { claimLocalSession, isJoiningAsHost, joinAsHost, stopSharing } from '../lib/host'
 import { isLoopbackOrigin } from '../lib/identity'
 import { buildJoinLink, useJoinContext } from '../lib/join'
 import { usePresencePublisher } from '../presence/usePresencePublisher'
+import { AgentsDialog } from './AgentsDialog'
 import { AvatarStack } from './Avatars'
 import { JoinDialog } from './JoinDialog'
 import { LeaveDialog, type LeaveReason } from './LeaveDialog'
@@ -31,7 +33,13 @@ import { ShareDialog } from './ShareDialog'
 
 const personas = (n: number) => `${n} ${n === 1 ? 'persona' : 'personas'}`
 
-/** Tras recargar la ventana del anfitrión: si el servidor sigue compartiendo, vuelve a conectarse como owner. */
+const AGENT_POLL_MS = 3000
+
+/**
+ * Tras recargar la ventana del anfitrión: si el servidor sigue compartiendo, vuelve a conectarse como owner.
+ * Además, mientras no hay sesión, sondea si un agente abrió una sesión LOCAL (session_open por MCP) y se une
+ * como anfitriona para sembrar el proyecto: el servidor espera a que la app lo haga.
+ */
 function useHostAutoRejoin() {
   useEffect(() => {
     if (!isLoopbackOrigin()) return
@@ -39,17 +47,45 @@ function useHostAutoRejoin() {
     collabApi
       .status()
       .then((st) => {
-        if (alive && st.session && useCollabStore.getState().status === 'idle') return joinAsHost(st.session)
+        if (alive && st.session && useCollabStore.getState().status === 'idle' && !isJoiningAsHost()) return joinAsHost(st.session)
       })
       .catch(() => undefined)
+
+    let failedFor: string | null = null
+    let unavailable = false
+    const poll = async () => {
+      const { status } = useCollabStore.getState()
+      if (unavailable || status !== 'idle' || isJoiningAsHost() || document.visibilityState !== 'visible') return
+      const st = await collabApi.status().catch((err: unknown) => {
+        // Servidor sin colaboración: no se insiste.
+        if (err instanceof Error && 'code' in err && (err as { code: string }).code === 'unavailable') unavailable = true
+        return null
+      })
+      const session = st?.session
+      if (!alive || !session || session.network !== 'local' || session.id === failedFor) return
+      if (useCollabStore.getState().status !== 'idle' || isJoiningAsHost()) return
+      try {
+        const claimed = await claimLocalSession(session)
+        if (useCollabStore.getState().status !== 'idle' || isJoiningAsHost()) return
+        await joinAsHost(claimed)
+        toast('Un agente de Claude Code abrió una sesión local', { description: 'Esta ventana es la anfitriona: verás sus cambios en tiempo real.' })
+      } catch {
+        failedFor = session.id
+      }
+    }
+    const timer = setInterval(() => void poll(), AGENT_POLL_MS)
     return () => {
       alive = false
+      clearInterval(timer)
     }
   }, [])
 }
 
-/** Cabecera: indicador de sesión (avatares, estado, menú) o los botones "Compartir" y "Unirse". */
-export function CollabHeader({ className }: { className?: string }) {
+/**
+ * Cabecera: indicador de sesión (avatares, estado, menú) o los botones "Compartir", "Unirse" y "Agentes".
+ * compact (móvil): sin textos; solo avatares, punto de estado y un menú con todas las acciones.
+ */
+export function CollabHeader({ className, compact = false }: { className?: string; compact?: boolean }) {
   useActivityTracker()
   usePresencePublisher()
   useHostAutoRejoin()
@@ -64,15 +100,21 @@ export function CollabHeader({ className }: { className?: string }) {
   const [shareOpen, setShareOpen] = useState(false)
   const [joinOpen, setJoinOpen] = useState(false)
   const [peopleOpen, setPeopleOpen] = useState(false)
+  const [agentsOpen, setAgentsOpen] = useState(false)
   const [leaving, setLeaving] = useState(false)
   // Fin de sesión o expulsión de un invitado: preguntar si se queda con una copia (hasta que elija).
   const forced: LeaveReason | null = !isHost && (status === 'kicked' || status === 'ended') ? status : null
   const leave: LeaveReason | null = forced ?? (leaving ? 'leave' : null)
 
   const inSession = status !== 'idle' && status !== 'rejected' && !(isHost && status === 'ended')
-  const count = active.length || peerCount + 1
+  const agentCount = active.filter(isAgent).length
+  const count = active.length ? active.length - agentCount : peerCount + 1
+  const who = agentCount ? `${personas(count)} · ${agentes(agentCount)}` : personas(count)
   const tone = statusTone(status)
   const host = active.find((p) => p.role === 'owner')
+  // Los agentes se conectan por loopback: solo el equipo anfitrión puede configurarlos.
+  const canAgents = isLoopbackOrigin() && (!inSession || isHost)
+  const agentsLabel = agentCount ? `Agentes · ${agentCount}` : 'Agentes'
 
   const copyLink = async () => {
     let link: string | null = null
@@ -100,7 +142,7 @@ export function CollabHeader({ className }: { className?: string }) {
       ? 'Esperando aprobación'
       : status === 'connecting'
         ? 'Conectando…'
-        : `${isHost ? 'Compartiendo' : 'En sesión'} · ${personas(count)}`
+        : `${isHost ? 'Compartiendo' : 'En sesión'} · ${who}`
 
   return (
     <div className={cn('flex items-center gap-1', className)}>
@@ -114,7 +156,7 @@ export function CollabHeader({ className }: { className?: string }) {
             >
               {active.length > 0 && <AvatarStack people={active} />}
               <span className={cn('size-2 shrink-0 rounded-full', TONE_DOT[tone])} aria-hidden />
-              <span className="hidden whitespace-nowrap sm:inline">{label}</span>
+              <span className={cn('hidden whitespace-nowrap', !compact && 'sm:inline')}>{label}</span>
               <ChevronDown className="size-3.5 text-muted-foreground" aria-hidden />
             </button>
           </DropdownMenuTrigger>
@@ -122,7 +164,7 @@ export function CollabHeader({ className }: { className?: string }) {
             <DropdownMenuLabel className="space-y-0.5 py-2 font-normal">
               <span className="block truncate text-sm font-medium text-foreground">{session?.projectName ?? 'Sesión compartida'}</span>
               <span className="block truncate text-xs text-muted-foreground">
-                {isHost ? 'Eres el anfitrión' : `Anfitrión: ${host?.name ?? session?.hostName ?? '—'}`} · {personas(count)}
+                {isHost ? 'Eres el anfitrión' : `Anfitrión: ${host?.name ?? session?.hostName ?? '—'}`} · {who}
               </span>
               <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
                 <span className={cn('size-1.5 rounded-full', TONE_DOT[tone])} aria-hidden />
@@ -138,11 +180,43 @@ export function CollabHeader({ className }: { className?: string }) {
               <Users />
               Ver participantes
             </DropdownMenuItem>
+            {canAgents && (
+              <DropdownMenuItem onSelect={() => setAgentsOpen(true)} className="max-sm:min-h-11">
+                <Bot />
+                Conectar agentes
+              </DropdownMenuItem>
+            )}
             <DropdownMenuSeparator />
             <DropdownMenuItem variant="destructive" onSelect={() => void exit()} className="max-sm:min-h-11">
               <LogOut />
               {isHost ? 'Dejar de compartir' : 'Salir'}
             </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      ) : compact ? (
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="ghost" size="icon" aria-label="Colaboración" className="max-sm:size-11">
+              <MoreHorizontal />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-56">
+            {isLoopbackOrigin() && (
+              <DropdownMenuItem onSelect={() => setShareOpen(true)} className="min-h-11">
+                <Share2 />
+                Compartir
+              </DropdownMenuItem>
+            )}
+            <DropdownMenuItem onSelect={() => setJoinOpen(true)} className="min-h-11">
+              <LogIn />
+              Unirse
+            </DropdownMenuItem>
+            {canAgents && (
+              <DropdownMenuItem onSelect={() => setAgentsOpen(true)} className="min-h-11">
+                <Bot />
+                Conectar agentes
+              </DropdownMenuItem>
+            )}
           </DropdownMenuContent>
         </DropdownMenu>
       ) : (
@@ -159,9 +233,17 @@ export function CollabHeader({ className }: { className?: string }) {
           </Button>
         </>
       )}
+      {/* En sesión el acceso queda a la vista (como anfitrión); compacto, va en el menú. */}
+      {canAgents && !compact && (
+        <Button variant="ghost" size="sm" onClick={() => setAgentsOpen(true)} aria-label={`Conectar agentes${agentCount ? ` (${agentes(agentCount)})` : ''}`} className="max-sm:h-11">
+          <Bot />
+          <span className={cn(inSession && 'hidden md:inline')}>{agentsLabel}</span>
+        </Button>
+      )}
 
       <ShareDialog open={shareOpen} onOpenChange={setShareOpen} />
       <JoinDialog open={joinOpen} onOpenChange={setJoinOpen} />
+      <AgentsDialog open={agentsOpen} onOpenChange={setAgentsOpen} />
       <LeaveDialog reason={leave} onOpenChange={(o) => !o && setLeaving(false)} />
       <Dialog open={peopleOpen} onOpenChange={setPeopleOpen}>
         <DialogContent className="max-h-[92svh] overflow-y-auto sm:max-w-md">

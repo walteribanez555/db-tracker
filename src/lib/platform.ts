@@ -2,6 +2,7 @@ export interface DesktopBridge {
   runtime: 'desktop'
   platform: string
   versions: { electron: string; chrome: string }
+  setTheme?: (theme: 'light' | 'dark' | 'system', background?: string) => void
 }
 
 declare global {

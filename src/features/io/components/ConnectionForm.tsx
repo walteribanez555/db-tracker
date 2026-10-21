@@ -84,7 +84,7 @@ export function ConnectionForm({
       <div className="grid gap-4 sm:grid-cols-[minmax(0,1fr)_auto]">
         <div className="space-y-1.5">
           <Label htmlFor={id('name')}>Nombre</Label>
-          <Input id={id('name')} value={form.name} onChange={(e) => set('name', e.target.value)} placeholder="produccion, staging…" />
+          <Input className="max-md:h-11" id={id('name')} value={form.name} onChange={(e) => set('name', e.target.value)} placeholder="produccion, staging…" />
         </div>
         <div className="space-y-1.5">
           <span className="text-sm font-medium">Motor</span>
@@ -107,11 +107,11 @@ export function ConnectionForm({
       <div className="grid gap-4 sm:grid-cols-[minmax(0,1fr)_7rem]">
         <div className="space-y-1.5">
           <Label htmlFor={id('host')}>Host</Label>
-          <Input id={id('host')} value={form.host} onChange={(e) => set('host', e.target.value)} placeholder="localhost" autoComplete="off" />
+          <Input className="max-md:h-11" id={id('host')} value={form.host} onChange={(e) => set('host', e.target.value)} placeholder="localhost" autoComplete="off" />
         </div>
         <div className="space-y-1.5">
           <Label htmlFor={id('port')}>Puerto</Label>
-          <Input
+          <Input className="max-md:h-11"
             id={id('port')}
             type="number"
             min={1}
@@ -125,15 +125,15 @@ export function ConnectionForm({
       <div className="grid gap-4 sm:grid-cols-3">
         <div className="space-y-1.5">
           <Label htmlFor={id('db')}>Base de datos</Label>
-          <Input id={id('db')} value={form.database} onChange={(e) => set('database', e.target.value)} autoComplete="off" />
+          <Input className="max-md:h-11" id={id('db')} value={form.database} onChange={(e) => set('database', e.target.value)} autoComplete="off" />
         </div>
         <div className="space-y-1.5">
           <Label htmlFor={id('user')}>Usuario</Label>
-          <Input id={id('user')} value={form.user} onChange={(e) => set('user', e.target.value)} autoComplete="off" />
+          <Input className="max-md:h-11" id={id('user')} value={form.user} onChange={(e) => set('user', e.target.value)} autoComplete="off" />
         </div>
         <div className="space-y-1.5">
           <Label htmlFor={id('pw')}>Contraseña</Label>
-          <Input
+          <Input className="max-md:h-11"
             id={id('pw')}
             type="password"
             value={password}
@@ -166,16 +166,16 @@ export function ConnectionForm({
       </p>
 
       <div className="flex flex-wrap items-center gap-2">
-        <Button type="submit" disabled={!valid || !dirty}>
+        <Button className="max-md:h-11" type="submit" disabled={!valid || !dirty}>
           <Save />
           {isNew ? 'Guardar conexión' : 'Guardar cambios'}
         </Button>
-        <Button type="button" variant="outline" disabled={!valid || testing} onClick={runTest}>
+        <Button className="max-md:h-11" type="button" variant="outline" disabled={!valid || testing} onClick={runTest}>
           {testing ? <Loader2 className="animate-spin" /> : <PlugZap />}
           Probar conexión
         </Button>
         {!isNew && (
-          <Button type="button" variant="ghost" className="ml-auto text-destructive hover:text-destructive" onClick={remove}>
+          <Button type="button" variant="ghost" className="max-md:h-11 ml-auto text-destructive hover:text-destructive" onClick={remove}>
             <Trash2 />
             Eliminar
           </Button>

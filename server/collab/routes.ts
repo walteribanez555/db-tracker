@@ -20,7 +20,9 @@ const shareSchema = z.object({
   hostName: z.string().trim().max(60).optional().default(''),
   port: z.number().int().min(1024).max(65535).optional(),
   autoApprove: z.boolean().optional(),
+  autoApproveAgents: z.boolean().optional(),
   shareRemoteApis: z.boolean().optional(),
+  network: z.enum(['lan', 'local']).optional(),
 })
 
 const actionSchema = z.object({

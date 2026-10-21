@@ -89,3 +89,16 @@
     animation-duration: 1ms;
   }
 }
+
+/* Móvil: controles de zoom táctiles (44 px) y sin atribución encima de la hoja. */
+@media (max-width: 767px) {
+  .db-editor .react-flow__controls-button {
+    width: 44px;
+    height: 44px;
+  }
+
+  .db-editor .react-flow__controls-button svg {
+    max-width: 16px;
+    max-height: 16px;
+  }
+}

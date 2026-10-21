@@ -1,9 +1,12 @@
 import { useTheme } from "@/components/theme/theme-provider"
+import { useIsMobile } from "@/hooks/use-mobile"
 import { Toaster as Sonner, type ToasterProps } from "sonner"
 import { CircleCheckIcon, InfoIcon, TriangleAlertIcon, OctagonXIcon, Loader2Icon } from "lucide-react"
 
 const Toaster = ({ ...props }: ToasterProps) => {
   const { resolved: theme } = useTheme()
+  // Móvil: arriba al centro (la parte de abajo es de la barra de pestañas y el dock).
+  const isMobile = useIsMobile()
 
   return (
     <Sonner
@@ -41,6 +44,10 @@ const Toaster = ({ ...props }: ToasterProps) => {
         },
       }}
       {...props}
+      {...(isMobile && {
+        position: "top-center" as const,
+        mobileOffset: { top: "calc(env(safe-area-inset-top) + 8px)", left: 12, right: 12 },
+      })}
     />
   )
 }

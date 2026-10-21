@@ -3,12 +3,14 @@ import { LayoutGrid, Plus, SquareFunction, Zap } from 'lucide-react'
 import { useState } from 'react'
 
 import { ACTION_MENU_GESTURE_LABEL } from '@/components/flow/use-action-menu'
+import { usePanelSheet } from '@/components/layout/collapsible-panel'
 import { CollapsibleSection } from '@/components/layout/collapsible-section'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Switch } from '@/components/ui/switch'
+import { useIsMobile } from '@/hooks/use-mobile'
 import { useProjectStore } from '@/store/project'
 
 import { addFunction, addTrigger, applyTemplate, arrangeCanvas, contextRelationId } from '../actions'
@@ -21,16 +23,36 @@ export function Palette() {
   const onlyInvolved = useTriggerLayout((s) => s.onlyInvolved)
   const setOnlyInvolved = useTriggerLayout((s) => s.setOnlyInvolved)
   const { fitView } = useReactFlow()
+  // Móvil: la paleta es una hoja; al elegir algo se cierra para ver el lienzo.
+  const isMobile = useIsMobile()
+  const { setOpen } = usePanelSheet('triggers-palette')
+  const done = () => isMobile && setOpen(false)
 
   return (
     <div className="flex flex-col" aria-label="Paleta de triggers">
       <CollapsibleSection title="Crear" storageKey="triggers-palette-crear" className="border-b px-1.5 pb-2" contentClassName="px-0.5">
-        <Button variant="ghost" size="sm" className="w-full justify-start" onClick={() => addTrigger()}>
+        <Button
+          variant="ghost"
+          size="sm"
+          className="w-full justify-start max-md:h-11"
+          onClick={() => {
+            addTrigger()
+            done()
+          }}
+        >
           <Plus />
           <Zap className="text-amber-600 dark:text-amber-400" />
           Trigger
         </Button>
-        <Button variant="ghost" size="sm" className="w-full justify-start" onClick={() => addFunction()}>
+        <Button
+          variant="ghost"
+          size="sm"
+          className="w-full justify-start max-md:h-11"
+          onClick={() => {
+            addFunction()
+            done()
+          }}
+        >
           <Plus />
           <SquareFunction className="text-violet-600 dark:text-violet-400" />
           Función
@@ -49,8 +71,11 @@ export function Palette() {
             <li key={t.id}>
               <button
                 type="button"
-                onClick={() => setTemplate({ id: t.id })}
-                className="w-full rounded-md px-2 py-1.5 text-left transition-colors outline-none hover:bg-muted focus-visible:ring-3 focus-visible:ring-ring/50"
+                onClick={() => {
+                  setTemplate({ id: t.id })
+                  done()
+                }}
+                className="w-full rounded-md px-2 py-1.5 text-left max-md:min-h-11 max-md:py-2.5 transition-colors outline-none hover:bg-muted focus-visible:ring-3 focus-visible:ring-ring/50"
               >
                 <span className="block text-sm">{t.name}</span>
                 <span className="block text-xs leading-snug text-muted-foreground">{t.description}</span>
@@ -61,7 +86,7 @@ export function Palette() {
       </CollapsibleSection>
 
       <CollapsibleSection title="Lienzo" storageKey="triggers-palette-lienzo" className="px-1.5 py-2" contentClassName="space-y-2 px-0.5 pt-1">
-        <div className="flex items-center justify-between gap-2 px-2">
+        <div className="flex items-center justify-between gap-2 px-2 max-md:min-h-11">
           <Label htmlFor="only-involved" className="text-sm font-normal">
             Solo tablas implicadas
           </Label>
@@ -70,8 +95,9 @@ export function Palette() {
         <Button
           variant="ghost"
           size="sm"
-          className="w-full justify-start"
+          className="w-full justify-start max-md:h-11"
           onClick={() => {
+            done()
             arrangeCanvas()
             setTimeout(() => fitView({ padding: 0.15, duration: 300 }), 50)
           }}
@@ -80,18 +106,25 @@ export function Palette() {
           Ordenar en columnas
         </Button>
         <p className="px-2 text-xs leading-snug text-muted-foreground">
-          Doble clic sobre un trigger, una función o una vista para editarlo ahí mismo. {ACTION_MENU_GESTURE_LABEL} abre el menú de acciones
-          (o Mayús+F10 con un elemento seleccionado). Arrastra de una tabla a un trigger, o de un trigger a una función, para conectarlos.
+          {isMobile ? (
+            'Toca un trigger para abrir su flujo. Mantén pulsado un elemento, una arista o el fondo para abrir el menú de acciones.'
+          ) : (
+            <>
+              Doble clic sobre un trigger, una función o una vista para editarlo ahí mismo. {ACTION_MENU_GESTURE_LABEL} abre el menú de acciones
+              (o Mayús+F10 con un elemento seleccionado). Arrastra de una tabla a un trigger, o de un trigger a una función, para conectarlos.
+            </>
+          )}
         </p>
       </CollapsibleSection>
 
-      <TemplateDialogHost />
+      {/* En móvil la hoja de la paleta se desmonta al cerrarse: el diálogo lo monta la vista. */}
+      {!isMobile && <TemplateDialogHost />}
     </div>
   )
 }
 
 /** Diálogo de plantilla controlado por useCanvasUi: lo abren la paleta y el menú de acciones. */
-function TemplateDialogHost() {
+export function TemplateDialogHost() {
   const state = useCanvasUi((s) => s.template)
   const setTemplate = useCanvasUi((s) => s.setTemplate)
   const template = state && TEMPLATES.find((t) => t.id === state.id)

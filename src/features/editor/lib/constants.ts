@@ -34,3 +34,6 @@ export const viewHeight = (columnCount: number) => TABLE_HEADER_HEIGHT + Math.ma
 export const tableHeight = (columnCount: number) => TABLE_HEADER_HEIGHT + Math.max(columnCount, 1) * ROW_HEIGHT + ADD_ROW_HEIGHT + 2
 
 export const snap = (value: number) => Math.round(value / GRID_SIZE) * GRID_SIZE
+
+/** Clave del panel Explorador (y de su hoja móvil, que se abre desde la barra flotante). */
+export const EXPLORER_PANEL_KEY = 'editor-sidebar'

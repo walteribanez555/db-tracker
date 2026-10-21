@@ -41,7 +41,7 @@ const sizeNote = (content: string) => `${content.split('\n').length} líneas · 
 function DialectSelect({ value, onChange, id }: { value: Dialect; onChange: (d: Dialect) => void; id?: string }) {
   return (
     <Select value={value} onValueChange={(v) => onChange(v as Dialect)}>
-      <SelectTrigger id={id} className="w-full">
+      <SelectTrigger id={id} className="max-md:data-[size=default]:h-11 w-full">
         <SelectValue />
       </SelectTrigger>
       <SelectContent>
@@ -79,7 +79,7 @@ function SchemaExport() {
   const empty = !schema.tables.length && !(schema.views ?? []).length
 
   return (
-    <section className="grid gap-8 lg:grid-cols-[18rem_minmax(0,1fr)]">
+    <section className="grid gap-8 max-lg:grid-cols-1 lg:grid-cols-[18rem_minmax(0,1fr)]">
       <div className="space-y-6">
         <div className="space-y-1.5">
           <Label htmlFor="exp-source">Origen</Label>
@@ -165,7 +165,7 @@ function MigrationExport() {
   const s = migration.summary
 
   return (
-    <section className="grid gap-8 lg:grid-cols-[18rem_minmax(0,1fr)]">
+    <section className="grid gap-8 max-lg:grid-cols-1 lg:grid-cols-[18rem_minmax(0,1fr)]">
       <div className="space-y-5">
         <div>
           <h3 className="text-base font-medium">Migración entre versiones</h3>
@@ -250,11 +250,11 @@ function ProjectExport() {
         </p>
       </div>
       <div className="flex flex-wrap gap-2">
-        <Button variant="outline" onClick={backup}>
+        <Button className="max-md:h-11" variant="outline" onClick={backup}>
           <FileArchive />
           Copia de seguridad (.json)
         </Button>
-        <Button variant="ghost" onClick={all}>
+        <Button className="max-md:h-11" variant="ghost" onClick={all}>
           <Files />
           Borrador en todos los formatos ({EXPORT_FORMATS.length} archivos)
         </Button>

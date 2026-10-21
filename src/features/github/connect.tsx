@@ -28,7 +28,7 @@ export function ConnectSection({ deviceFlowAvailable, onConnected }: { deviceFlo
       </p>
 
       <Tabs defaultValue="pat" className="mt-4">
-        <TabsList>
+        <TabsList className="max-md:w-full max-md:group-data-horizontal/tabs:h-11">
           <TabsTrigger value="pat">Token personal</TabsTrigger>
           <TabsTrigger value="device">Inicio con dispositivo</TabsTrigger>
         </TabsList>
@@ -88,7 +88,7 @@ function PatForm({ onConnected }: { onConnected: (me: GithubMe) => void }) {
       <form onSubmit={submit} className="space-y-3">
         <div className="space-y-1.5">
           <Label htmlFor="gh-token">Personal Access Token</Label>
-          <Input
+          <Input className="max-md:h-11"
             id="gh-token"
             type="password"
             autoComplete="off"
@@ -100,7 +100,7 @@ function PatForm({ onConnected }: { onConnected: (me: GithubMe) => void }) {
           />
         </div>
         {error && <p className="text-sm text-destructive">{error}</p>}
-        <Button type="submit" disabled={busy || !token.trim()}>
+        <Button className="max-md:h-11" type="submit" disabled={busy || !token.trim()}>
           {busy && <Loader2 className="animate-spin" />}
           Conectar
         </Button>
@@ -159,6 +159,7 @@ function DeviceFlow({ onConnected }: { onConnected: (me: GithubMe) => void }) {
         <div className="flex items-center gap-3">
           <span className="font-mono text-3xl font-semibold tracking-[0.2em]">{info.userCode}</span>
           <Button
+            className="max-md:size-11"
             variant="ghost"
             size="icon-sm"
             aria-label="Copiar código"
@@ -172,7 +173,7 @@ function DeviceFlow({ onConnected }: { onConnected: (me: GithubMe) => void }) {
           </Button>
         </div>
         <div className="flex items-center gap-4">
-          <Button asChild variant="outline" size="sm">
+          <Button className="max-md:h-11" asChild variant="outline" size="sm">
             <a href={info.verificationUri} target="_blank" rel="noreferrer">
               Abrir GitHub <ExternalLink />
             </a>
@@ -192,7 +193,7 @@ function DeviceFlow({ onConnected }: { onConnected: (me: GithubMe) => void }) {
         No hace falta copiar ningún token.
       </p>
       {state.phase === 'error' && <p className="text-destructive">{state.message}</p>}
-      <Button onClick={start} disabled={state.phase === 'starting'}>
+      <Button className="max-md:h-11" onClick={start} disabled={state.phase === 'starting'}>
         {state.phase === 'starting' && <Loader2 className="animate-spin" />}
         {state.phase === 'error' ? 'Generar otro código' : 'Obtener código'}
       </Button>

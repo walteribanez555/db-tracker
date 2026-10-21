@@ -118,37 +118,40 @@ export function SideBySideDiff({ left, right, leftLabel, rightLabel }: { left: V
   return (
     <div className="space-y-3">
       <DiffSummary diff={diff} />
-      <div className="overflow-hidden rounded-md border">
-        <div className="grid grid-cols-2 divide-x border-b bg-muted/40 text-xs">
-          <div className="px-3 py-2">
-            <div className="font-medium">{leftLabel}</div>
-            <div className="text-muted-foreground">{fmtDate(left.createdAt)}</div>
+      {/* En móvil, las dos columnas mantienen un ancho legible y el bloque se desplaza en horizontal. */}
+      <div className="overflow-hidden rounded-md border max-md:overflow-x-auto max-md:overscroll-x-contain">
+        <div className="max-md:min-w-[36rem]">
+          <div className="grid grid-cols-2 divide-x border-b bg-muted/40 text-xs">
+            <div className="px-3 py-2">
+              <div className="font-medium">{leftLabel}</div>
+              <div className="text-muted-foreground">{fmtDate(left.createdAt)}</div>
+            </div>
+            <div className="px-3 py-2">
+              <div className="font-medium">{rightLabel}</div>
+              <div className="text-muted-foreground">{fmtDate(right.createdAt)}</div>
+            </div>
           </div>
-          <div className="px-3 py-2">
-            <div className="font-medium">{rightLabel}</div>
-            <div className="text-muted-foreground">{fmtDate(right.createdAt)}</div>
+          {rows.map(({ id, l, r }) => (
+            <div key={id} className="grid grid-cols-2 divide-x border-b last:border-b-0">
+              <TableBlock table={l} other={r} side="left" />
+              <TableBlock table={r} other={l} side="right" />
+            </div>
+          ))}
+          <div className="border-b bg-muted/40 px-3 py-1.5 text-xs font-medium text-muted-foreground">Relaciones</div>
+          <div className="grid grid-cols-2 divide-x border-b">
+            <ListBlock items={lRel} others={sigs(rRel)} side="left" />
+            <ListBlock items={rRel} others={sigs(lRel)} side="right" />
           </div>
-        </div>
-        {rows.map(({ id, l, r }) => (
-          <div key={id} className="grid grid-cols-2 divide-x border-b last:border-b-0">
-            <TableBlock table={l} other={r} side="left" />
-            <TableBlock table={r} other={l} side="right" />
+          <div className="border-b bg-muted/40 px-3 py-1.5 text-xs font-medium text-muted-foreground">Vistas</div>
+          <div className="grid grid-cols-2 divide-x border-b">
+            <ListBlock items={lView} others={sigs(rView)} side="left" />
+            <ListBlock items={rView} others={sigs(lView)} side="right" />
           </div>
-        ))}
-        <div className="border-b bg-muted/40 px-3 py-1.5 text-xs font-medium text-muted-foreground">Relaciones</div>
-        <div className="grid grid-cols-2 divide-x border-b">
-          <ListBlock items={lRel} others={sigs(rRel)} side="left" />
-          <ListBlock items={rRel} others={sigs(lRel)} side="right" />
-        </div>
-        <div className="border-b bg-muted/40 px-3 py-1.5 text-xs font-medium text-muted-foreground">Vistas</div>
-        <div className="grid grid-cols-2 divide-x border-b">
-          <ListBlock items={lView} others={sigs(rView)} side="left" />
-          <ListBlock items={rView} others={sigs(lView)} side="right" />
-        </div>
-        <div className="border-b bg-muted/40 px-3 py-1.5 text-xs font-medium text-muted-foreground">Triggers</div>
-        <div className="grid grid-cols-2 divide-x">
-          <ListBlock items={lTrg} others={sigs(rTrg)} side="left" />
-          <ListBlock items={rTrg} others={sigs(lTrg)} side="right" />
+          <div className="border-b bg-muted/40 px-3 py-1.5 text-xs font-medium text-muted-foreground">Triggers</div>
+          <div className="grid grid-cols-2 divide-x">
+            <ListBlock items={lTrg} others={sigs(rTrg)} side="left" />
+            <ListBlock items={rTrg} others={sigs(lTrg)} side="right" />
+          </div>
         </div>
       </div>
     </div>

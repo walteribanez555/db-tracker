@@ -6,6 +6,7 @@ import { Hono } from 'hono'
 import { logger } from 'hono/logger'
 
 import { collabRoutes, syncRoute, type CollabManager } from './collab/index.ts'
+import { mcpApiRoutes, mcpHandler, type McpService } from './mcp/index.ts'
 import { dbRoutes } from './routes/db.ts'
 import { githubRoutes } from './routes/github.ts'
 
@@ -15,6 +16,8 @@ export interface AppOptions {
   runtime: 'web' | 'desktop'
   /** Gestor de colaboración en red. Si se omite, no se montan /api/collab ni /sync. */
   collab?: CollabManager
+  /** Servidor MCP para agentes (/mcp y /api/mcp). Solo existe en esta app (listener local), nunca en la de red. */
+  mcp?: McpService
 }
 
 /**
@@ -23,7 +26,7 @@ export interface AppOptions {
  * el anfitrión se conecta a /sync con rol owner. El listener de red usa createLanApp (server/collab).
  * Para el WebSocket, el servidor debe arrancarse con `websocket: { server: createWebSocketServer() }`.
  */
-export function createApp({ staticDir, runtime, collab }: AppOptions) {
+export function createApp({ staticDir, runtime, collab, mcp }: AppOptions) {
   const app = new Hono()
   app.use('/api/*', logger())
 
@@ -34,13 +37,19 @@ export function createApp({ staticDir, runtime, collab }: AppOptions) {
     app.route('/api/collab', collabRoutes(collab, 'local'))
     app.get('/sync/:sessionId', syncRoute(collab, 'local'))
   }
+  if (mcp) {
+    app.route('/api/mcp', mcpApiRoutes(mcp))
+    app.all('/mcp', mcpHandler(mcp))
+  }
+  // Sin OAuth: los clientes MCP que lo sondean reciben 404 JSON (no el index.html de la SPA).
+  app.all('/.well-known/*', (c) => c.json({ ok: false, error: 'No encontrado.' }, 404))
 
   if (staticDir) {
     const root = path.relative(process.cwd(), staticDir) || '.'
     app.use('/*', serveStatic({ root }))
     // Fallback SPA: cualquier ruta no-API devuelve index.html (react-router se encarga).
     app.get('*', async (c) => {
-      if (c.req.path.startsWith('/api/') || c.req.path.startsWith('/sync/')) return c.notFound()
+      if (c.req.path.startsWith('/api/') || c.req.path.startsWith('/sync/') || c.req.path === '/mcp') return c.notFound()
       return c.html(await readFile(path.join(staticDir, 'index.html'), 'utf8'))
     })
   }

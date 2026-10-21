@@ -55,7 +55,7 @@ export function clientKind(): ClientKind {
   return 'web'
 }
 
-export const KIND_LABEL: Record<ClientKind, string> = { desktop: 'Escritorio', web: 'Navegador', mobile: 'Móvil' }
+export const KIND_LABEL: Record<ClientKind, string> = { desktop: 'Escritorio', web: 'Navegador', mobile: 'Móvil', agent: 'Agente' }
 
 export function initials(name: string): string {
   const parts = name.trim().split(/\s+/).filter(Boolean)

@@ -5,6 +5,7 @@ directories:
 files:
   - dist/**
   - dist-electron/**
+  - dist-mcp/**
   - package.json
 # Todo está empaquetado con Vite/esbuild: no hace falta copiar node_modules.
 includeSubNodeModules: false

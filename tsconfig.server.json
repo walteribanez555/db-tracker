@@ -13,5 +13,22 @@
     "verbatimModuleSyntax": true,
     "paths": { "@/*": ["./src/*"] }
   },
-  "include": ["server", "electron", "src/collab/protocol.ts", "src/types", "src/lib/exporters", "src/lib/diff.ts", "src/lib/id.ts"]
+  "include": [
+    "server",
+    "electron",
+    "src/collab/protocol.ts",
+    "src/collab/doc.ts",
+    "src/types",
+    "src/lib/exporters",
+    "src/lib/importers/views.ts",
+    "src/lib/importers/split.ts",
+    "src/lib/diff.ts",
+    "src/lib/id.ts",
+    "src/data/sample-project.ts",
+    "src/features/normalization/lib",
+    "src/features/reports/lib.ts",
+    "src/features/triggers/lib/graph.ts",
+    "src/features/triggers/lib/sql.ts",
+    "src/features/triggers/lib/templates.ts"
+  ]
 }

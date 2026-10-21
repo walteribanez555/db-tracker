@@ -1,12 +1,16 @@
 import { Trash } from 'lucide-react'
-import type { ReactNode } from 'react'
+import { useContext, type ReactNode } from 'react'
 
 import { CollapsibleSection } from '@/components/layout/collapsible-section'
 import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
 import { cn } from '@/lib/utils'
 
+import { InspectorChromeContext } from './chrome'
+
 export function InspectorHeader({ kind, title, onDelete }: { kind: string; title: ReactNode; onDelete?: () => void }) {
+  const { hideHeader } = useContext(InspectorChromeContext)
+  if (hideHeader) return null
   return (
     <div className="flex items-center gap-2 border-b px-4 py-3">
       <div className="min-w-0 flex-1">

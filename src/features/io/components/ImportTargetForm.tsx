@@ -47,13 +47,13 @@ export function ImportTargetForm({
               id={`${idPrefix}-branch`}
               value={value.name}
               onChange={(e) => onChange({ ...value, name: e.target.value })}
-              className="font-mono"
+              className="max-md:h-11 font-mono"
             />
             {exists && <p className="text-xs text-muted-foreground">Ya existe: se añadirá un sufijo.</p>}
           </div>
           <div className="space-y-1">
             <Label htmlFor={`${idPrefix}-msg`}>Mensaje del commit</Label>
-            <Input id={`${idPrefix}-msg`} value={value.message} onChange={(e) => onChange({ ...value, message: e.target.value })} />
+            <Input className="max-md:h-11" id={`${idPrefix}-msg`} value={value.message} onChange={(e) => onChange({ ...value, message: e.target.value })} />
           </div>
           {dirty && (
             <p className="text-xs text-muted-foreground sm:col-span-2">

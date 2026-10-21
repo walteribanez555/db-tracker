@@ -1,6 +1,6 @@
 // Modal "flujo del trigger": mini flujo de solo lectura + simulación, detalles, SQL, efectos e historial.
 import { Background, BackgroundVariant, Handle, Position, ReactFlow, ReactFlowProvider, useReactFlow, type NodeProps } from '@xyflow/react'
-import { Copy, CopyPlus, Eye, Pause, Pencil, Play, Power, RotateCcw, SquareFunction, StepForward, Table2, Trash2, Zap } from 'lucide-react'
+import { Copy, CopyPlus, Eye, MoreHorizontal, Pause, Pencil, Play, Power, RotateCcw, SquareFunction, StepForward, Table2, Trash2, X, Zap } from 'lucide-react'
 import { memo, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { toast } from 'sonner'
 
@@ -8,9 +8,11 @@ import { CodeEditor, sqlLanguageFor } from '@/components/code'
 import { SharedCodeEditor } from '@/components/code/shared-code-editor'
 import { useTheme } from '@/components/theme/theme-provider'
 import { Button } from '@/components/ui/button'
-import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@/components/ui/dialog'
+import { Dialog, DialogClose, DialogContent, DialogDescription, DialogTitle } from '@/components/ui/dialog'
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
+import { useIsMobile } from '@/hooks/use-mobile'
 import { cn } from '@/lib/utils'
 import { useProjectStore } from '@/store/project'
 import type { DbFunction, Trigger } from '@/types/schema'
@@ -121,9 +123,17 @@ export function TriggerFlowModal({ triggerId, open, onOpenChange, initialTab = '
     if (open && triggerId && !trigger) onOpenChange(false)
   }, [open, triggerId, trigger, onOpenChange])
 
+  // Móvil: a pantalla completa, flujo arriba (~40 %) y pestañas debajo.
+  const isMobile = useIsMobile()
+
   return (
     <Dialog open={open && !!trigger} onOpenChange={onOpenChange}>
-      <DialogContent className="flex h-[min(720px,calc(100dvh-2rem))] w-[calc(100vw-2rem)] max-w-[calc(100vw-2rem)] flex-col gap-0 overflow-hidden p-0 sm:max-w-[1100px]">
+      <DialogContent
+        mobileLayout="fullscreen"
+        // En móvil la cabecera trae su propio botón de cerrar (44 px) junto al menú de acciones.
+        showCloseButton={!isMobile}
+        className="flex h-[min(720px,calc(100dvh-2rem))] w-[calc(100vw-2rem)] max-w-[calc(100vw-2rem)] flex-col gap-0 overflow-hidden p-0 sm:max-w-[1100px] max-md:pt-[env(safe-area-inset-top)] max-md:pb-[env(safe-area-inset-bottom)]"
+      >
         {trigger && <ModalBody key={trigger.id} trigger={trigger} initialTab={initialTab} onClose={() => onOpenChange(false)} onSwitchTrigger={onSwitchTrigger} />}
       </DialogContent>
     </Dialog>
@@ -146,6 +156,7 @@ function ModalBody({
   const upsertFunction = useProjectStore((s) => s.upsertFunction)
   const disabledTriggers = useCanvasUi((s) => s.disabledTriggers)
   const { resolved } = useTheme()
+  const isMobile = useIsMobile()
   const [tab, setTab] = useState<TriggerModalTab>(initialTab)
   const fn = draft.functions.find((f) => f.id === trigger.functionId)
   const table = draft.tables.find((t) => t.id === trigger.tableId) ?? (draft.views ?? []).find((v) => v.id === trigger.tableId)
@@ -223,65 +234,110 @@ function ModalBody({
   const effects = useMemo(() => triggerEffects(draft, trigger), [draft, trigger])
   const history = useMemo(() => triggerHistory(project, trigger.id), [project, trigger.id])
 
+  const duplicate = () => {
+    const id = duplicateTrigger(trigger.id)
+    if (id) onSwitchTrigger?.(id)
+  }
+  const remove = () => {
+    deleteTrigger(trigger.id)
+    onClose()
+  }
+
   return (
     <>
       {/* Encabezado */}
-      <header className="flex flex-wrap items-start gap-x-6 gap-y-2 border-b px-5 py-3 pr-12">
-        <div className="min-w-0 flex-1">
-          <DialogTitle className="flex items-center gap-2 font-mono text-base">
-            <Zap className="size-4 shrink-0 text-amber-600 dark:text-amber-400" aria-hidden />
-            <span className="truncate">{trigger.name}</span>
-          </DialogTitle>
-          <DialogDescription className="mt-0.5 text-sm">
-            {trigger.timing} · {trigger.events.join(', ') || 'sin eventos'} · {trigger.level === 'ROW' ? 'por fila' : 'por sentencia'} → {fn ? `${fn.name}()` : 'sin función'}
-            <span className="mx-1.5">·</span>
-            en {table?.name ?? '?'}
-            <span className="mx-1.5">·</span>
-            <span className={cn('whitespace-nowrap', off ? 'text-amber-700 dark:text-amber-400' : 'text-emerald-700 dark:text-emerald-400')}>
-              {off ? 'desactivado en la BD' : 'activo en la BD'}
-            </span>
-          </DialogDescription>
-        </div>
-        <div className="flex flex-wrap gap-1.5">
-          <Button size="sm" variant="ghost" onClick={() => setTab('detalles')}>
-            <Pencil />
-            Editar
-          </Button>
-          <Button
-            size="sm"
-            variant="ghost"
-            onClick={() => {
-              const id = duplicateTrigger(trigger.id)
-              if (id) onSwitchTrigger?.(id)
-            }}
-          >
-            <CopyPlus />
-            Duplicar
-          </Button>
-          <Button size="sm" variant="ghost" onClick={() => toggleTriggerEnabled(trigger.id)}>
-            <Power />
-            {off ? 'Activar' : 'Desactivar'}
-          </Button>
-          <Button
-            size="sm"
-            variant="ghost"
-            className="text-destructive hover:text-destructive"
-            onClick={() => {
-              deleteTrigger(trigger.id)
-              onClose()
-            }}
-          >
-            <Trash2 />
-            Eliminar
-          </Button>
-        </div>
-      </header>
+      {isMobile ? (
+        <header className="flex shrink-0 items-start gap-1 border-b py-2 pr-1 pl-4">
+          <div className="min-w-0 flex-1 py-1">
+            <DialogTitle className="flex items-center gap-2 font-mono text-base">
+              <Zap className="size-4 shrink-0 text-amber-600 dark:text-amber-400" aria-hidden />
+              <span className="truncate">{trigger.name}</span>
+            </DialogTitle>
+            <DialogDescription className="mt-0.5 line-clamp-2 text-xs">
+              {trigger.timing} · {trigger.events.join(', ') || 'sin eventos'} → {fn ? `${fn.name}()` : 'sin función'} · en {table?.name ?? '?'} ·{' '}
+              <span className={off ? 'text-amber-700 dark:text-amber-400' : 'text-emerald-700 dark:text-emerald-400'}>{off ? 'desactivado' : 'activo'}</span>
+            </DialogDescription>
+          </div>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" size="icon" className="size-11 text-muted-foreground" aria-label="Acciones del trigger">
+                <MoreHorizontal className="size-5" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-52">
+              <DropdownMenuItem className="min-h-11" onSelect={() => setTab('detalles')}>
+                <Pencil />
+                Editar
+              </DropdownMenuItem>
+              <DropdownMenuItem className="min-h-11" onSelect={duplicate}>
+                <CopyPlus />
+                Duplicar
+              </DropdownMenuItem>
+              <DropdownMenuItem className="min-h-11" onSelect={() => toggleTriggerEnabled(trigger.id)}>
+                <Power />
+                {off ? 'Activar' : 'Desactivar'}
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem className="min-h-11" variant="destructive" onSelect={remove}>
+                <Trash2 />
+                Eliminar
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+          <DialogClose asChild>
+            <Button variant="ghost" size="icon" className="size-11 text-muted-foreground" aria-label="Cerrar">
+              <X className="size-5" />
+            </Button>
+          </DialogClose>
+        </header>
+      ) : (
+        <header className="flex flex-wrap items-start gap-x-6 gap-y-2 border-b px-5 py-3 pr-12">
+          <div className="min-w-0 flex-1">
+            <DialogTitle className="flex items-center gap-2 font-mono text-base">
+              <Zap className="size-4 shrink-0 text-amber-600 dark:text-amber-400" aria-hidden />
+              <span className="truncate">{trigger.name}</span>
+            </DialogTitle>
+            <DialogDescription className="mt-0.5 text-sm">
+              {trigger.timing} · {trigger.events.join(', ') || 'sin eventos'} · {trigger.level === 'ROW' ? 'por fila' : 'por sentencia'} → {fn ? `${fn.name}()` : 'sin función'}
+              <span className="mx-1.5">·</span>
+              en {table?.name ?? '?'}
+              <span className="mx-1.5">·</span>
+              <span className={cn('whitespace-nowrap', off ? 'text-amber-700 dark:text-amber-400' : 'text-emerald-700 dark:text-emerald-400')}>
+                {off ? 'desactivado en la BD' : 'activo en la BD'}
+              </span>
+            </DialogDescription>
+          </div>
+          <div className="flex flex-wrap gap-1.5">
+            <Button size="sm" variant="ghost" onClick={() => setTab('detalles')}>
+              <Pencil />
+              Editar
+            </Button>
+            <Button size="sm" variant="ghost" onClick={duplicate}>
+              <CopyPlus />
+              Duplicar
+            </Button>
+            <Button size="sm" variant="ghost" onClick={() => toggleTriggerEnabled(trigger.id)}>
+              <Power />
+              {off ? 'Activar' : 'Desactivar'}
+            </Button>
+            <Button
+              size="sm"
+              variant="ghost"
+              className="text-destructive hover:text-destructive"
+              onClick={remove}
+            >
+              <Trash2 />
+              Eliminar
+            </Button>
+          </div>
+        </header>
+      )}
 
       <div className="flex min-h-0 flex-1 flex-col md:flex-row">
         {/* Izquierda: flujo del trigger */}
         <div
           ref={flowBox}
-          className="relative h-64 min-w-0 shrink-0 border-b md:h-auto md:flex-1 md:border-r md:border-b-0"
+          className="relative h-[40%] min-w-0 shrink-0 border-b md:h-auto md:flex-1 md:border-r md:border-b-0"
           aria-label="Flujo del trigger"
         >
           {/* Proveedor propio: el modal vive dentro del ReactFlowProvider del lienzo y no debe compartir su store. */}
@@ -310,15 +366,15 @@ function ModalBody({
               <Background variant={BackgroundVariant.Dots} gap={18} size={1} color="var(--canvas-dot)" bgColor="var(--canvas)" />
             </ReactFlow>
           </ReactFlowProvider>
-          <p className="pointer-events-none absolute bottom-2 left-3 text-[11px] text-muted-foreground">
+          <p className="pointer-events-none absolute bottom-2 left-3 text-[11px] text-muted-foreground max-md:hidden">
             De arriba abajo: tabla → triggers {trigger.timing} en orden → función → efectos → cascada
           </p>
         </div>
 
         {/* Derecha: pestañas */}
         <Tabs value={tab} onValueChange={(v) => setTab(v as TriggerModalTab)} className="flex min-h-0 w-full flex-col gap-0 md:w-[400px] md:shrink-0">
-          <div className="border-b px-3 pt-2 pb-1">
-            <TabsList variant="line">
+          <div className="border-b px-3 pt-2 pb-1 max-md:overflow-x-auto max-md:px-1 max-md:pt-0 max-md:[scrollbar-width:none]">
+            <TabsList variant="line" className="max-md:h-11 max-md:[&>*]:flex-none max-md:[&>*]:px-3">
               <TabsTrigger value="simular">Simular</TabsTrigger>
               <TabsTrigger value="detalles">Detalles</TabsTrigger>
               <TabsTrigger value="sql">SQL</TabsTrigger>
@@ -339,19 +395,19 @@ function ModalBody({
                 className="w-full"
               >
                 {EVENTS.map((e) => (
-                  <ToggleGroupItem key={e} value={e} className="flex-1 text-xs">
+                  <ToggleGroupItem key={e} value={e} className="flex-1 text-xs max-md:h-10">
                     {e}
                   </ToggleGroupItem>
                 ))}
               </ToggleGroup>
               <div className="flex gap-2">
                 {playing ? (
-                  <Button size="sm" className="flex-1" onClick={() => setPlaying(false)}>
+                  <Button size="sm" className="flex-1 max-md:h-11" onClick={() => setPlaying(false)}>
                     <Pause />
                     Pausar
                   </Button>
                 ) : (
-                  <Button size="sm" className="flex-1" onClick={play} disabled={!steps.length}>
+                  <Button size="sm" className="flex-1 max-md:h-11" onClick={play} disabled={!steps.length}>
                     <Play />
                     {current >= 0 && current < steps.length - 1 ? 'Continuar' : 'Reproducir'}
                   </Button>
@@ -360,6 +416,7 @@ function ModalBody({
                   size="sm"
                   variant="outline"
                   aria-label="Paso a paso"
+                  className="max-md:size-11"
                   disabled={current >= steps.length - 1}
                   onClick={() => {
                     setPlaying(false)
@@ -372,6 +429,7 @@ function ModalBody({
                   size="sm"
                   variant="outline"
                   aria-label="Reiniciar"
+                  className="max-md:size-11"
                   disabled={current < 0}
                   onClick={() => {
                     setPlaying(false)

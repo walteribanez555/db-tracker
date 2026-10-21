@@ -15,6 +15,7 @@ import { TriangleAlert } from 'lucide-react'
 import { useCallback, useEffect, useMemo } from 'react'
 
 import { useTheme } from '@/components/theme/theme-provider'
+import { useIsMobile } from '@/hooks/use-mobile'
 // Colaboración: cursores y selección de los demás; rol "Solo lectura".
 import { RemoteCursors, useIsReadOnly } from '@/features/collab'
 import { useProjectStore } from '@/store/project'
@@ -34,7 +35,8 @@ const PREFIX: Record<string, string> = { table: 't', trigger: 'g', function: 'f'
 const presenceNodeId = (sel: { kind: string; id: string }) => (PREFIX[sel.kind] ? `${PREFIX[sel.kind]}:${sel.id}` : null)
 const idOf = (nodeId: string) => nodeId.slice(2)
 
-export function TriggerCanvas({ onSimulate }: { onSimulate: () => void }) {
+/** `onInspect` (móvil): al tocar una tabla, función o vista se abre la hoja del inspector. */
+export function TriggerCanvas({ onSimulate, onInspect }: { onSimulate: () => void; onInspect?: () => void }) {
   const draft = useProjectStore((s) => s.draft)
   const selection = useProjectStore((s) => s.selection)
   const setSelection = useProjectStore((s) => s.setSelection)
@@ -48,6 +50,7 @@ export function TriggerCanvas({ onSimulate }: { onSimulate: () => void }) {
   const { resolved } = useTheme()
   const menu = useCanvasMenu(onSimulate)
   const readOnly = useIsReadOnly()
+  const isMobile = useIsMobile()
 
   const flow = useMemo(() => buildFlow(draft, tablePositions, onlyInvolved, selection), [draft, tablePositions, onlyInvolved, selection])
   const cycles = useMemo(() => findCycles(draft), [draft])
@@ -72,8 +75,11 @@ export function TriggerCanvas({ onSimulate }: { onSimulate: () => void }) {
       if (n.type === 'table') return { ...n, data: { ...n.data, hl: h } } as FlowNode
       const sig = contentSig(n.type === 'trigger' ? n.data.trigger : n.type === 'fn' ? n.data.fn : n.data.view)
       return { ...n, data: { ...n.data, hl: h, sig, changed: baseSigs.get(n.id) !== sig } } as FlowNode
-    })
-  }, [flow.nodes, hl, cycleTriggerIds, baseSigs])
+    }).map((n) =>
+      // Móvil: solo se arrastra el nodo seleccionado; con uno sin seleccionar, un dedo mueve el lienzo.
+      isMobile && !n.selected ? ({ ...n, draggable: false } as FlowNode) : n,
+    )
+  }, [flow.nodes, hl, cycleTriggerIds, baseSigs, isMobile])
 
   const edges = useMemo<Edge[]>(() => {
     if (!hl.running) return flow.edges
@@ -176,66 +182,71 @@ export function TriggerCanvas({ onSimulate }: { onSimulate: () => void }) {
       setSelection({ kind: map[kindOf(n.id)], id: idOf(n.id) })
       // Seleccionar un trigger abre su flujo en el modal (no el panel SQL inferior).
       if (kindOf(n.id) === 'g') useCanvasUi.getState().openFlowModal(idOf(n.id))
+      else onInspect?.()
     },
-    [setSelection],
+    [setSelection, onInspect],
   )
 
   return (
-    <ReactFlow
-      nodes={nodes}
-      edges={edges}
-      nodeTypes={nodeTypes}
-      onNodesChange={onNodesChange}
-      onNodeDragStop={onNodeDragStop}
-      onNodeClick={onNodeClick}
-      onNodeDoubleClick={onNodeDoubleClick}
-      {...menu.handlers}
-      zoomOnDoubleClick={false}
-      onPaneClick={() => setSelection(null)}
-      onConnect={onConnect}
-      isValidConnection={isValidConnection}
-      onNodesDelete={onNodesDelete}
-      deleteKeyCode={readOnly ? null : ['Backspace', 'Delete']}
-      nodesDraggable={!readOnly}
-      nodesConnectable={!readOnly}
-      defaultEdgeOptions={{
-        labelStyle: { fontSize: 10, fill: 'var(--muted-foreground)' },
-        labelBgStyle: { fill: 'var(--canvas)' },
-        labelBgPadding: [4, 2],
-      }}
-      fitView
-      fitViewOptions={{ padding: 0.15 }}
-      minZoom={0.2}
-      colorMode={resolved}
-      style={{ backgroundColor: 'var(--canvas)' }}
-      className="triggers-canvas bg-canvas [&_.react-flow__edge-path]:transition-[stroke,stroke-width,opacity] [&_.react-flow__edge-path]:duration-300 [&_.react-flow__edge-path]:ease-out motion-reduce:[&_.react-flow__edge-path]:transition-none"
-    >
-      {menu.element}
-      {/* Colaboración: cursores remotos y nodos que tienen seleccionados o editando. */}
-      <RemoteCursors nodeIdFor={presenceNodeId} />
-      <Background variant={BackgroundVariant.Dots} gap={20} size={1} color="var(--canvas-dot)" bgColor="var(--canvas)" />
-      <Controls showInteractive={false} position="bottom-left" />
-      {cycles.length > 0 && (
-        <Panel position="top-center" className="max-w-xl">
-          <details role="alert" className="rounded-md border border-destructive/40 bg-popover px-3 py-1.5 text-xs animate-in fade-in slide-in-from-top-1 duration-200 motion-reduce:animate-none">
-            <summary className="flex cursor-pointer list-none items-center gap-2 font-medium text-destructive">
-              <TriangleAlert className="size-4 shrink-0" aria-hidden />
-              {cycles.length === 1 ? 'Ciclo de triggers detectado' : `${cycles.length} ciclos de triggers detectados`}
-              <span className="font-normal text-muted-foreground">· ver detalle</span>
-            </summary>
-            <div className="mt-1.5 space-y-1 pb-1">
-              {cycles.map((c) => (
-                <p key={c.key} className="font-mono text-[11px] text-muted-foreground">
-                  {c.path}
+    // Pulsación larga (táctil) = Ctrl + clic derecho: abre el menú de acciones del elemento pulsado.
+    <div className="h-full w-full" {...menu.longPressHandlers}>
+      <ReactFlow
+        nodes={nodes}
+        edges={edges}
+        nodeTypes={nodeTypes}
+        onNodesChange={onNodesChange}
+        onNodeDragStop={onNodeDragStop}
+        onNodeClick={onNodeClick}
+        onNodeDoubleClick={onNodeDoubleClick}
+        {...menu.handlers}
+        zoomOnDoubleClick={false}
+        nodeDragThreshold={isMobile ? 6 : undefined}
+        onPaneClick={() => setSelection(null)}
+        onConnect={onConnect}
+        isValidConnection={isValidConnection}
+        onNodesDelete={onNodesDelete}
+        deleteKeyCode={readOnly ? null : ['Backspace', 'Delete']}
+        nodesDraggable={!readOnly}
+        nodesConnectable={!readOnly}
+        defaultEdgeOptions={{
+          labelStyle: { fontSize: 10, fill: 'var(--muted-foreground)' },
+          labelBgStyle: { fill: 'var(--canvas)' },
+          labelBgPadding: [4, 2],
+        }}
+        fitView
+        fitViewOptions={{ padding: 0.15 }}
+        minZoom={0.2}
+        colorMode={resolved}
+        style={{ backgroundColor: 'var(--canvas)' }}
+        className="triggers-canvas bg-canvas max-md:[&_.react-flow__controls-button]:size-11 [&_.react-flow__edge-path]:transition-[stroke,stroke-width,opacity] [&_.react-flow__edge-path]:duration-300 [&_.react-flow__edge-path]:ease-out motion-reduce:[&_.react-flow__edge-path]:transition-none"
+      >
+        {menu.element}
+        {/* Colaboración: cursores remotos y nodos que tienen seleccionados o editando. */}
+        <RemoteCursors nodeIdFor={presenceNodeId} />
+        <Background variant={BackgroundVariant.Dots} gap={20} size={1} color="var(--canvas-dot)" bgColor="var(--canvas)" />
+        <Controls showInteractive={false} position="bottom-left" />
+        {cycles.length > 0 && (
+          <Panel position="top-center" className="max-w-xl max-md:mt-16 max-md:max-w-[calc(100%-1.5rem)]">
+            <details role="alert" className="rounded-md border border-destructive/40 bg-popover px-3 py-1.5 text-xs animate-in fade-in slide-in-from-top-1 duration-200 motion-reduce:animate-none">
+              <summary className="flex cursor-pointer list-none items-center gap-2 font-medium text-destructive">
+                <TriangleAlert className="size-4 shrink-0" aria-hidden />
+                {cycles.length === 1 ? 'Ciclo de triggers detectado' : `${cycles.length} ciclos de triggers detectados`}
+                <span className="font-normal text-muted-foreground">· ver detalle</span>
+              </summary>
+              <div className="mt-1.5 space-y-1 pb-1">
+                {cycles.map((c) => (
+                  <p key={c.key} className="font-mono text-[11px] text-muted-foreground">
+                    {c.path}
+                  </p>
+                ))}
+                <p className="text-muted-foreground">
+                  Puede provocar recursión infinita. Corta la cadena con una condición WHEN, pg_trigger_depth() o moviendo la lógica.
                 </p>
-              ))}
-              <p className="text-muted-foreground">
-                Puede provocar recursión infinita. Corta la cadena con una condición WHEN, pg_trigger_depth() o moviendo la lógica.
-              </p>
-            </div>
-          </details>
-        </Panel>
-      )}
-    </ReactFlow>
+              </div>
+            </details>
+          </Panel>
+        )}
+      </ReactFlow>
+    </div>
   )
 }

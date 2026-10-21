@@ -161,17 +161,17 @@ export function PullPanel({ initial, onDone }: { initial?: { owner: string; repo
           <div className="flex flex-wrap items-center gap-2">
             <Input
               id="pull-target"
-              className="max-w-xs font-mono"
+              className="max-md:h-11 max-w-xs font-mono"
               placeholder="propietario/repositorio"
               value={text}
               onChange={(e) => setText(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && void read()}
             />
-            <Button onClick={() => void read()} disabled={busy || !text.trim()}>
+            <Button className="max-md:h-11" onClick={() => void read()} disabled={busy || !text.trim()}>
               {busy && <Loader2 className="animate-spin" />}
               Leer repositorio
             </Button>
-            <Button variant="ghost" onClick={() => setPickList((v) => !v)}>
+            <Button className="max-md:h-11" variant="ghost" onClick={() => setPickList((v) => !v)}>
               {pickList ? 'Ocultar mis repositorios' : 'Elegir de mis repositorios'}
             </Button>
           </div>
@@ -300,6 +300,7 @@ function PullPreview({ preview, onLoaded }: { preview: PullResponse; onLoaded: (
           </p>
           <div className="flex flex-wrap gap-2">
             <Button
+              className="max-md:h-11"
               variant="outline"
               onClick={() => {
                 downloadProjectBackup()
@@ -308,14 +309,14 @@ function PullPreview({ preview, onLoaded }: { preview: PullResponse; onLoaded: (
             >
               Exportar JSON del proyecto actual
             </Button>
-            <Button variant={exported ? 'default' : 'destructive'} onClick={load}>
+            <Button className="max-md:h-11" variant={exported ? 'default' : 'destructive'} onClick={load}>
               Reemplazar y cargar
             </Button>
           </div>
         </div>
       ) : (
         <div className="flex flex-wrap items-center gap-3">
-          <Button onClick={load}>Cargar en DB Tracker</Button>
+          <Button className="max-md:h-11" onClick={load}>Cargar en DB Tracker</Button>
           <span className="text-muted-foreground">Reemplaza el proyecto local «{local.name}».</span>
         </div>
       )}

@@ -19,7 +19,7 @@ export function SourceSelect({
   const { draft, groups } = useSchemaSources()
   return (
     <Select value={value} onValueChange={onChange}>
-      <SelectTrigger id={id} className="w-full min-w-0">
+      <SelectTrigger id={id} className="max-md:data-[size=default]:h-11 w-full min-w-0">
         <SelectValue placeholder={placeholder} />
       </SelectTrigger>
       <SelectContent className="max-h-80">

@@ -5,6 +5,7 @@ import { toast } from 'sonner'
 import { CodeEditor, sqlLanguageFor } from '@/components/code'
 import { Button } from '@/components/ui/button'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { useIsMobile } from '@/hooks/use-mobile'
 import { cn } from '@/lib/utils'
 import { useProjectStore } from '@/store/project'
 import type { Dialect } from '@/types/schema'
@@ -14,8 +15,13 @@ import { useTriggerLayout } from '../store'
 
 export function SqlPanel() {
   const draft = useProjectStore((s) => s.draft)
-  const open = useTriggerLayout((s) => s.sqlOpen)
-  const setOpen = useTriggerLayout((s) => s.setSqlOpen)
+  const storedOpen = useTriggerLayout((s) => s.sqlOpen)
+  const setStoredOpen = useTriggerLayout((s) => s.setSqlOpen)
+  // Móvil: plegado por defecto y sin tocar la preferencia guardada de escritorio.
+  const isMobile = useIsMobile()
+  const [mobileOpen, setMobileOpen] = useState(false)
+  const open = isMobile ? mobileOpen : storedOpen
+  const setOpen = isMobile ? setMobileOpen : setStoredOpen
   const [dialect, setDialect] = useState<Dialect>(draft.dialect === 'mysql' ? 'mysql' : 'postgresql')
   const [copied, setCopied] = useState(false)
 
@@ -39,16 +45,23 @@ export function SqlPanel() {
 
   return (
     <section className="shrink-0 border-t bg-background" aria-label="SQL generado">
-      <div className="flex h-10 items-center gap-2 px-2">
-        <Button variant="ghost" size="sm" onClick={() => setOpen(!open)} aria-expanded={open} aria-controls="triggers-sql-body">
+      <div className="flex h-10 items-center gap-2 px-2 max-md:h-12">
+        <Button
+          variant="ghost"
+          size="sm"
+          className="max-md:h-11 max-md:shrink-0"
+          onClick={() => setOpen(!open)}
+          aria-expanded={open}
+          aria-controls="triggers-sql-body"
+        >
           <ChevronUp className={cn('transition-transform duration-200 ease-out motion-reduce:transition-none', open && 'rotate-180')} />
           SQL generado
         </Button>
         {open && (
-          <div className="flex flex-1 items-center gap-2 animate-in fade-in duration-200 motion-reduce:animate-none">
-            <span className="text-xs text-muted-foreground">Todo el esquema · vistas, funciones y triggers</span>
+          <div className="flex min-w-0 flex-1 items-center gap-2 animate-in fade-in duration-200 motion-reduce:animate-none">
+            <span className="text-xs text-muted-foreground max-md:hidden">Todo el esquema · vistas, funciones y triggers</span>
             <Select value={dialect} onValueChange={(v) => setDialect(v as Dialect)}>
-              <SelectTrigger size="sm" aria-label="Dialecto">
+              <SelectTrigger size="sm" aria-label="Dialecto" className="max-md:data-[size=sm]:h-10">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -56,9 +69,9 @@ export function SqlPanel() {
                 <SelectItem value="mysql">MySQL</SelectItem>
               </SelectContent>
             </Select>
-            <Button variant="ghost" size="sm" className="ml-auto" onClick={copy} disabled={!sql}>
+            <Button variant="ghost" size="sm" className="ml-auto max-md:size-11" onClick={copy} disabled={!sql} aria-label="Copiar SQL">
               {copied ? <Check /> : <Copy />}
-              Copiar
+              <span className="max-md:sr-only">Copiar</span>
             </Button>
           </div>
         )}

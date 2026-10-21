@@ -2,6 +2,7 @@
 export { collabApi, CollabApiError } from './api'
 export { useActivityCount } from './activity'
 export { ActivityPanel } from './components/ActivityPanel'
+export { AgentsDialog } from './components/AgentsDialog'
 export { CollabBanner } from './components/CollabBanner'
 export { CollabHeader } from './components/CollabHeader'
 export { JoinDialog } from './components/JoinDialog'

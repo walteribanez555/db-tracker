@@ -2,11 +2,12 @@ import { Handle, Position, useConnection, useUpdateNodeInternals, type NodeProps
 import { KeyRound, Link2, Plus } from 'lucide-react'
 import { memo, useEffect, useState, type CSSProperties } from 'react'
 
-import { Popover, PopoverAnchor, PopoverContent } from '@/components/ui/popover'
+import { Popover, PopoverAnchor } from '@/components/ui/popover'
 import { cn } from '@/lib/utils'
 import { useProjectStore } from '@/store/project'
 import type { Column } from '@/types/schema'
 
+import { AdaptivePopoverContent } from '../components/AdaptivePopoverContent'
 import { NormalizationPanel } from '../components/inline/NormalizationPanel'
 import { TypeCombobox } from '../components/TypeCombobox'
 import { removeColumnFrom } from '../lib/actions'
@@ -238,9 +239,16 @@ function TableNodeComponent({ id, data, selected }: NodeProps<TableFlowNode>) {
         </div>
       </PopoverAnchor>
       {reviewing && (
-        <PopoverContent side="right" align="start" sideOffset={12} className="w-80">
+        <AdaptivePopoverContent
+          side="right"
+          align="start"
+          sideOffset={12}
+          className="w-80"
+          title={`Normalización de ${table.name}`}
+          onClose={stopEditing}
+        >
           <NormalizationPanel tableId={table.id} />
-        </PopoverContent>
+        </AdaptivePopoverContent>
       )}
     </Popover>
   )

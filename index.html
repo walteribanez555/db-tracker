@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <title>DB Tracker</title>
     <script>
       // Aplica el tema antes del primer pintado para evitar el destello.
@@ -12,6 +12,8 @@
         var d = t === 'dark' || (t === 'system' && matchMedia('(prefers-color-scheme: dark)').matches)
         document.documentElement.classList.toggle('dark', d)
         document.documentElement.style.colorScheme = d ? 'dark' : 'light'
+        // Escritorio: ajusta ya la ventana nativa al tema guardado (evita el destello del fondo inicial).
+        if (window.dbTracker && window.dbTracker.setTheme) window.dbTracker.setTheme(t, d ? '#0e1621' : '#ffffff')
       } catch (e) {}
     </script>
   </head>

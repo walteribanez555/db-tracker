@@ -3,7 +3,7 @@
 import { useEffect } from 'react'
 import { create } from 'zustand'
 
-import { useCollabStore, type CollabRole, type CollabState, type Participant } from '@/collab'
+import { useActivity, useCollabStore, type ClientKind, type CollabRole, type CollabState, type Participant } from '@/collab'
 
 export interface ActivityEntry {
   id: string
@@ -11,6 +11,8 @@ export interface ActivityEntry {
   /** Nombre de quien la protagoniza (null = mensaje del sistema). */
   who: string | null
   color: string | null
+  /** Tipo de cliente de quien la protagoniza (icono en el panel). */
+  kind?: ClientKind
   text: string
 }
 
@@ -54,14 +56,14 @@ function diff(prev: CollabState, next: CollabState, add: ActivityState['add']) {
   for (const p of next.participants) {
     if (p.id === me) continue
     const old = before.get(p.id)
-    const who = { who: p.name, color: p.color }
+    const who = { who: p.name, color: p.color, kind: p.kind }
     if (!old) add({ ...who, text: p.status === 'pending' ? 'pide unirse' : 'se unió' })
     else if (old.status === 'pending' && p.status === 'active') add({ ...who, text: 'se unió' })
     else if (old.role !== p.role) add({ ...who, text: `ahora es ${ROLE_LABEL[p.role]}` })
   }
   for (const p of prev.participants) {
     if (p.id === me || after.has(p.id)) continue
-    add({ who: p.name, color: p.color, text: p.status === 'pending' ? 'ya no espera' : 'salió' })
+    add({ who: p.name, color: p.color, kind: p.kind, text: p.status === 'pending' ? 'ya no espera' : 'salió' })
   }
   if (prev.me.role && next.me.role && prev.me.role !== next.me.role)
     add({ who: null, color: null, text: `Tu rol ahora es ${ROLE_LABEL[next.me.role]}` })
@@ -72,5 +74,8 @@ export function useActivityTracker() {
   useEffect(() => useCollabStore.subscribe((next, prev) => diff(prev, next, useActivityStore.getState().add)), [])
 }
 
-/** Número de entradas (para la pestaña del dock). */
-export const useActivityCount = () => useActivityStore((s) => s.entries.length)
+/** Número de entradas, incluidas las de agentes ({t:'activity'}) (para la pestaña del dock). */
+export function useActivityCount() {
+  const local = useActivityStore((s) => s.entries.length)
+  return local + useActivity().length
+}

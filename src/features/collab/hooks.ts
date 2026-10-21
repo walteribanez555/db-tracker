@@ -57,7 +57,10 @@ export interface PeerHere {
   state: AwarenessState
 }
 
-/** Peers (awareness) que están en la misma ruta y rama que yo, sin incluirme. */
+/**
+ * Peers (awareness) que están en la misma ruta y rama que yo, sin incluirme.
+ * Los agentes MCP no tienen pantalla: cuentan en cualquier lienzo si trabajan en mi rama.
+ */
 export function usePeersHere(): PeerHere[] {
   const { pathname } = useLocation()
   const branchId = useProjectStore((s) => s.project.currentBranchId)
@@ -69,7 +72,10 @@ export function usePeersHere(): PeerHere[] {
       !live
         ? []
         : Object.entries(peers)
-        .filter(([, st]) => st?.user && st.user.id !== myId && st.route === pathname && st.branchId === branchId)
+        .filter(
+          ([, st]) =>
+            st?.user && st.user.id !== myId && st.branchId === branchId && (st.user.kind === 'agent' || st.route === pathname),
+        )
         .map(([k, st]) => ({ key: Number(k), state: st })),
     [live, peers, myId, pathname, branchId],
   )

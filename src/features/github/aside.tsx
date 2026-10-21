@@ -57,7 +57,7 @@ export function GithubAside({ me, onLogout }: { me: GithubMe | null; onLogout: (
                 {w}
               </p>
             ))}
-            <Button variant="outline" size="sm" onClick={onLogout}>
+            <Button className="max-md:h-11" variant="outline" size="sm" onClick={onLogout}>
               Desconectar
             </Button>
           </div>

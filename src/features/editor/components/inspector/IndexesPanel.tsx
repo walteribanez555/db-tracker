@@ -26,19 +26,19 @@ function IndexItem({ table, index }: { table: Table; index: Index }) {
           value={index.name}
           onChange={(e) => updateIndex(table.id, index.id, { name: e.target.value })}
           aria-label="Nombre del índice"
-          className="h-7 flex-1 font-mono text-xs md:text-xs"
+          className="h-7 flex-1 font-mono text-xs md:text-xs max-md:h-11 max-md:text-base"
         />
         <Button
           variant="ghost"
           size="icon-sm"
           aria-label="Eliminar índice"
-          className="text-muted-foreground hover:text-destructive"
+          className="text-muted-foreground hover:text-destructive max-md:size-11"
           onClick={() => removeIndex(table.id, index.id)}
         >
           <Trash />
         </Button>
       </div>
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-2 max-md:min-h-11">
         <Switch
           id={`${id}-unique`}
           size="sm"
@@ -52,7 +52,7 @@ function IndexItem({ table, index }: { table: Table; index: Index }) {
       <div className="grid gap-1.5">
         <span className="text-xs text-muted-foreground">Columnas</span>
         {table.columns.map((c) => (
-          <label key={c.id} className="flex items-center gap-2 text-xs">
+          <label key={c.id} className="flex items-center gap-2 text-xs max-md:min-h-11 max-md:text-sm">
             <Checkbox checked={index.columnIds.includes(c.id)} onCheckedChange={(v) => toggleColumn(c.id, v === true)} />
             <span className="font-mono">{c.name}</span>
             <span className="ml-auto font-mono text-[11px] text-muted-foreground">{c.type}</span>
@@ -72,7 +72,7 @@ export function IndexesPanel({ table }: { table: Table }) {
         <IndexItem key={index.id} table={table} index={index} />
       ))}
       <div className="px-4 py-3">
-        <Button variant="outline" size="sm" className="w-full" onClick={() => addIndex(table.id)}>
+        <Button variant="outline" size="sm" className="w-full max-md:h-11" onClick={() => addIndex(table.id)}>
           <Plus />
           Agregar índice
         </Button>

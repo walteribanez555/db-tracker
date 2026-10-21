@@ -47,22 +47,44 @@ function DialogOverlay({
   )
 }
 
+/**
+ * Presentación en móvil (< 768 px, `max-md:`); en tablet y escritorio no cambia nada.
+ * - "sheet" (por defecto): hoja anclada abajo, a todo el ancho, hasta 92svh con scroll interno.
+ * - "fullscreen": ocupa toda la pantalla (respeta las áreas seguras).
+ * - "none": como en escritorio.
+ * En "sheet" y "fullscreen" los botones con texto miden al menos 44 px y el de cerrar, 44 × 44.
+ */
+type DialogMobileLayout = "sheet" | "fullscreen" | "none"
+
+const MOBILE_COMMON =
+  "max-md:left-0 max-md:right-0 max-md:mx-auto max-md:w-full max-md:max-w-none max-md:translate-x-0 max-md:translate-y-0 max-md:overflow-y-auto max-md:overscroll-contain max-md:content-start max-md:pb-[max(1rem,env(safe-area-inset-bottom))] max-md:data-open:zoom-in-100 max-md:data-open:slide-in-from-bottom-6 max-md:data-closed:zoom-out-100 max-md:data-closed:slide-out-to-bottom-6 max-md:[&_[data-slot=button]:not([data-size^=icon])]:min-h-11 max-md:[&_[data-slot=dialog-footer]]:pb-[max(1rem,env(safe-area-inset-bottom))]"
+
+const MOBILE_LAYOUT: Record<DialogMobileLayout, string> = {
+  sheet: `${MOBILE_COMMON} max-md:top-auto max-md:bottom-0 max-md:max-h-[92svh] max-md:rounded-b-none`,
+  fullscreen: `${MOBILE_COMMON} max-md:top-0 max-md:bottom-0 max-md:h-svh max-md:max-h-svh max-md:rounded-none max-md:ring-0 max-md:pt-[max(1rem,env(safe-area-inset-top))]`,
+  none: "",
+}
+
 function DialogContent({
   className,
   children,
   showCloseButton = true,
+  mobileLayout = "sheet",
   ...props
 }: React.ComponentProps<typeof DialogPrimitive.Content> & {
   showCloseButton?: boolean
+  mobileLayout?: DialogMobileLayout
 }) {
   return (
     <DialogPortal>
       <DialogOverlay />
       <DialogPrimitive.Content
         data-slot="dialog-content"
+        data-mobile-layout={mobileLayout}
         className={cn(
           "fixed top-1/2 left-1/2 z-50 grid w-full max-w-[calc(100%-2rem)] -translate-x-1/2 -translate-y-1/2 gap-4 rounded-xl bg-popover p-4 text-sm text-popover-foreground ring-1 ring-foreground/10 duration-100 outline-none sm:max-w-sm data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95",
-          className
+          className,
+          MOBILE_LAYOUT[mobileLayout]
         )}
         {...props}
       >
@@ -71,7 +93,11 @@ function DialogContent({
           <DialogPrimitive.Close data-slot="dialog-close" asChild>
             <Button
               variant="ghost"
-              className="absolute top-2 right-2"
+              className={cn(
+                "absolute top-2 right-2",
+                mobileLayout !== "none" && "max-md:size-11",
+                mobileLayout === "fullscreen" && "max-md:top-[max(0.5rem,env(safe-area-inset-top))]"
+              )}
               size="icon-sm"
             >
               <XIcon

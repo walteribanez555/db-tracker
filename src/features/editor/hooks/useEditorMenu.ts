@@ -19,7 +19,7 @@ export function useEditorMenu() {
   const rf = useReactFlow<FlowNode, FlowEdge>()
   const navigate = useNavigate()
   const { autoLayout, fitVisible, exportImage } = useCanvasActions()
-  const { menuProps, target, openAt, handleContextMenu } = useActionMenuTrigger<MenuTarget>()
+  const { menuProps, target, openAt, handleContextMenu, longPressHandlers } = useActionMenuTrigger<MenuTarget>()
   const setSelection = useProjectStore((s) => s.setSelection)
   const draft = useProjectStore((s) => s.draft)
   const clipboard = useEditorUi((s) => s.clipboard)
@@ -99,5 +99,14 @@ export function useEditorMenu() {
 
   useActionMenuKeys(resolveKeyboardAnchor, openAt)
 
-  return { menuProps, groups, onNodeContextMenu, onEdgeContextMenu, onPaneContextMenu }
+  /** Abre el menú de un objetivo concreto (botón «más acciones» o pulsación larga en la hoja móvil). */
+  const openMenuFor = useCallback(
+    (t: MenuTarget, x: number, y: number) => {
+      select(t)
+      openAt(x, y, t)
+    },
+    [select, openAt],
+  )
+
+  return { menuProps, groups, onNodeContextMenu, onEdgeContextMenu, onPaneContextMenu, openMenuFor, longPressHandlers }
 }

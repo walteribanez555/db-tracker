@@ -2,9 +2,10 @@ import type { NodeProps } from '@xyflow/react'
 import { Zap } from 'lucide-react'
 import { memo } from 'react'
 
-import { Popover, PopoverAnchor, PopoverContent } from '@/components/ui/popover'
+import { Popover, PopoverAnchor } from '@/components/ui/popover'
 import { cn } from '@/lib/utils'
 
+import { AdaptivePopoverContent } from '../components/AdaptivePopoverContent'
 import { TriggerEditPanel, TriggerSqlPanel } from '../components/inline/TriggerPanels'
 import { TRIGGER_HEIGHT, TRIGGER_WIDTH } from '../lib/constants'
 import { stopEditing, useEditing, useEditorUi } from '../lib/editorStore'
@@ -53,9 +54,17 @@ function TriggerNodeComponent({ data, selected }: NodeProps<TriggerFlowNode>) {
         </div>
       </PopoverAnchor>
       {(editing || viewingSql) && (
-        <PopoverContent side="right" align="start" sideOffset={12} className={viewingSql ? 'w-[28rem]' : 'w-80'}>
+        <AdaptivePopoverContent
+          side="right"
+          align="start"
+          sideOffset={12}
+          className={viewingSql ? 'w-[28rem]' : 'w-80'}
+          title={viewingSql ? `SQL de ${trigger.name}` : `Trigger ${trigger.name}`}
+          mobileLayout={viewingSql ? 'full' : 'sheet'}
+          onClose={stopEditing}
+        >
           {viewingSql ? <TriggerSqlPanel triggerId={trigger.id} /> : <TriggerEditPanel triggerId={trigger.id} />}
-        </PopoverContent>
+        </AdaptivePopoverContent>
       )}
     </Popover>
   )

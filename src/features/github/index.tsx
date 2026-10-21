@@ -1,10 +1,11 @@
-import { Loader2 } from 'lucide-react'
+import { Loader2, UserRound } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router'
 import { toast } from 'sonner'
 
-import { CollapsiblePanel } from '@/components/layout/collapsible-panel'
+import { CollapsiblePanel, PanelSheetTrigger } from '@/components/layout/collapsible-panel'
 import { Button } from '@/components/ui/button'
+import { useIsMobile } from '@/hooks/use-mobile'
 import { useProjectStore } from '@/store/project'
 
 import { githubApi, GithubApiError } from './api'
@@ -23,6 +24,7 @@ export function GithubView() {
   const github = useProjectStore((s) => s.project.github)
   const hasVersions = useProjectStore((s) => s.project.versions.length > 0)
   const setGithub = useProjectStore((s) => s.setGithub)
+  const isMobile = useIsMobile()
 
   const report = useGithubReport(me?.connected ? github : null)
   const runner = useSyncRunner(report.refresh)
@@ -61,9 +63,20 @@ export function GithubView() {
   return (
     <div className="flex h-full min-h-0">
       <div className="min-w-0 flex-1 overflow-y-auto">
-        <div className="mx-auto max-w-5xl px-6 py-8">
-          <header className="border-b pb-6">
-            <h1 className="text-2xl font-semibold tracking-tight">GitHub</h1>
+        <div className="mx-auto max-w-5xl px-6 py-8 max-md:px-4 max-md:py-4">
+          <header className="border-b pb-6 max-md:pb-4">
+            <div className="flex items-center justify-between gap-3">
+              <h1 className="text-2xl font-semibold tracking-tight">GitHub</h1>
+              {isMobile && (
+                // Móvil: cuenta, repositorio vinculado y archivos van en una hoja.
+                <PanelSheetTrigger storageKey="github:aside" title="Cuenta y archivos" asChild>
+                  <Button variant="outline" className="h-11 gap-1.5">
+                    <UserRound className="size-4" />
+                    Cuenta y archivos
+                  </Button>
+                </PanelSheetTrigger>
+              )}
+            </div>
             <p className="mt-1 max-w-2xl text-sm text-muted-foreground">
               Sube el proyecto a un repositorio (una rama por flujo, un commit por versión) o bájalo de él, y consulta la actividad de cada
               rama. La conexión con GitHub y el vínculo con el repositorio duran solo esta sesión.
@@ -82,7 +95,7 @@ export function GithubView() {
           {me?.connected && (
             <div className="animate-in fade-in duration-200">
               {!hasVersions && (
-                <div className="flex flex-wrap items-center justify-between gap-3 border-b py-5">
+                <div className="flex flex-wrap items-center justify-between gap-3 border-b py-5 max-md:flex-col max-md:items-stretch">
                   <div className="text-sm">
                     <p className="font-medium">Este proyecto aún no tiene versiones</p>
                     <p className="text-muted-foreground">
@@ -90,7 +103,7 @@ export function GithubView() {
                       proyecto desde la pestaña «Bajar de un repositorio».
                     </p>
                   </div>
-                  <Button asChild variant="outline" size="sm">
+                  <Button className="max-md:h-11" asChild variant="outline" size="sm">
                     <Link to="/versiones">Cargar proyecto de ejemplo</Link>
                   </Button>
                 </div>
@@ -106,7 +119,7 @@ export function GithubView() {
           )}
         </div>
       </div>
-      <CollapsiblePanel side="right" width={300} title="Cuenta y archivos" storageKey="github:aside" shortcut="]">
+      <CollapsiblePanel side="right" width={300} title="Cuenta y archivos" storageKey="github:aside" shortcut="]" mobileTrigger={false} mobileSide="bottom">
         <GithubAside me={me} onLogout={logout} />
       </CollapsiblePanel>
     </div>

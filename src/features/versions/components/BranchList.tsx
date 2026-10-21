@@ -1,6 +1,7 @@
 import { GitBranchPlus } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
+import { useIsMobile } from '@/hooks/use-mobile'
 import { cn } from '@/lib/utils'
 import type { Project } from '@/types/schema'
 
@@ -16,16 +17,26 @@ interface Props {
 
 export function BranchList({ project, activeBranchId, onSelect, onCheckout, onCreate }: Props) {
   const laneColor = useLaneColor()
+  const isMobile = useIsMobile()
   const branches = orderedBranches(project)
   return (
     <div className="flex h-full min-h-0 flex-col">
-      <div className="flex items-center justify-between gap-2 border-b px-4 pb-2">
-        <h2 className="text-sm font-semibold">Ramas y flujos</h2>
-        <Button size="sm" variant="ghost" className="gap-1.5" onClick={onCreate}>
-          <GitBranchPlus className="size-3.5" />
-          Nueva
-        </Button>
-      </div>
+      {isMobile ? (
+        <div className="border-b px-4 py-2">
+          <Button variant="outline" className="h-11 w-full gap-1.5" onClick={onCreate}>
+            <GitBranchPlus className="size-4" />
+            Nueva rama
+          </Button>
+        </div>
+      ) : (
+        <div className="flex items-center justify-between gap-2 border-b px-4 pb-2">
+          <h2 className="text-sm font-semibold">Ramas y flujos</h2>
+          <Button size="sm" variant="ghost" className="gap-1.5" onClick={onCreate}>
+            <GitBranchPlus className="size-3.5" />
+            Nueva
+          </Button>
+        </div>
+      )}
       <ul className={cn('min-h-0 flex-1 divide-y overflow-y-auto', STAGGER_LIST)}>
         {branches.map((b) => {
           const versions = branchVersions(project, b.id)
@@ -56,7 +67,14 @@ export function BranchList({ project, activeBranchId, onSelect, onCheckout, onCr
                   </p>
                 )}
               </button>
-              {!isCurrent && (
+              {!isCurrent && isMobile && (
+                <div className="px-4 pb-3">
+                  <Button variant="outline" className="h-11 w-full" onClick={() => onCheckout(b.id)}>
+                    Cambiar a esta rama
+                  </Button>
+                </div>
+              )}
+              {!isCurrent && !isMobile && (
                 <Button
                   size="xs"
                   variant="outline"

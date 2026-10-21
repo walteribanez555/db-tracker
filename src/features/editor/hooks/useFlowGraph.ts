@@ -1,6 +1,7 @@
 import { applyNodeChanges, type Connection, type IsValidConnection, type NodeChange, type NodeMouseHandler, type OnNodeDrag } from '@xyflow/react'
 import { useCallback, useMemo, useState } from 'react'
 
+import { useIsMobile } from '@/hooks/use-mobile'
 import { useProjectStore, type ProjectState } from '@/store/project'
 import type { Position } from '@/types/schema'
 
@@ -51,6 +52,9 @@ export function useFlowGraph() {
   const setPendingRelation = useEditorUi((s) => s.setPendingRelation)
   const { tables, notes, relations, views, triggers, functions } = draft
   const changes = useChangeSet()
+  // Móvil: solo se arrastra el nodo ya seleccionado; arrastrar uno sin seleccionar mueve el lienzo
+  // (evita mover tablas por error al desplazarse con un dedo).
+  const isMobile = useIsMobile()
 
   const derived = useMemo<FlowNode[]>(() => {
     const fks = fkColumnIdsByTable(relations)
@@ -63,6 +67,8 @@ export function useFlowGraph() {
           ]
         : []
     const isSelected = (kind: Selection['kind'], id: string) => selection?.kind === kind && selection.id === id
+    // Seleccionado: decide `nodesDraggable` (herramienta, solo lectura); sin seleccionar: no arrastrable.
+    const touch = (kind: Selection['kind'], id: string) => (isMobile && !isSelected(kind, id) ? { draggable: false } : {})
     const fnName = new Map(functions.map((f) => [f.id, f.name]))
 
     return [
@@ -73,6 +79,7 @@ export function useFlowGraph() {
           position: note.position,
           data: { note },
           selected: isSelected('note', note.id),
+          ...touch('note', note.id),
           hidden: !layers.notes,
         }),
       ),
@@ -89,6 +96,7 @@ export function useFlowGraph() {
             columnChanges: Object.fromEntries(table.columns.flatMap((c) => (changes.columns.has(c.id) ? [[c.id, changes.columns.get(c.id)!]] : []))),
           },
           selected: isSelected('table', table.id),
+          ...touch('table', table.id),
           hidden: !layers.tables,
         }),
       ),
@@ -99,6 +107,7 @@ export function useFlowGraph() {
           position: view.position,
           data: { view, change: changes.views.get(view.id) },
           selected: isSelected('view', view.id),
+          ...touch('view', view.id),
           hidden: !layers.views,
         }),
       ),
@@ -109,11 +118,12 @@ export function useFlowGraph() {
           position: trigger.position,
           data: { trigger, functionName: fnName.get(trigger.functionId) ?? null, change: changes.triggers.get(trigger.id) },
           selected: isSelected('trigger', trigger.id),
+          ...touch('trigger', trigger.id),
           hidden: !layers.triggers,
         }),
       ),
     ]
-  }, [tables, notes, relations, views, triggers, functions, selection, layers, changes])
+  }, [tables, notes, relations, views, triggers, functions, selection, layers, changes, isMobile])
 
   const [nodes, setNodes] = useState<FlowNode[]>(derived)
   const [lastDerived, setLastDerived] = useState(derived)

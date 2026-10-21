@@ -4,7 +4,7 @@
 /* ───────────────────────── Roles y participantes ───────────────────────── */
 
 export type CollabRole = 'owner' | 'editor' | 'viewer'
-export type ClientKind = 'desktop' | 'web' | 'mobile'
+export type ClientKind = 'desktop' | 'web' | 'mobile' | 'agent'
 
 export interface Participant {
   /** id estable de la conexión (lo asigna el servidor). */
@@ -23,6 +23,8 @@ export interface Participant {
 /* ───────────────────────── Sesión (anfitrión) ───────────────────────── */
 
 export interface SessionInfo {
+  /** 'local' = solo este equipo (agentes MCP); 'lan' = también la red local. */
+  network: 'lan' | 'local'
   id: string
   /** Código de 6 caracteres legibles (sin 0/O/1/I), para dictarlo. */
   code: string
@@ -39,6 +41,10 @@ export interface SessionInfo {
   autoApprove: boolean
   /** false: los invitados no pueden usar /api/db ni /api/github del anfitrión (recomendado). */
   shareRemoteApis: boolean
+  /** Los agentes MCP entran sin aprobación manual. */
+  autoApproveAgents?: boolean
+  /** La sesión la abrió un agente sin conocer el nombre del proyecto: la app la renombra al unirse. */
+  provisional?: boolean
   startedAt: string
 }
 
@@ -77,6 +83,13 @@ export interface DiscoveredSession {
 // En el listener de red NO existen /api/db ni /api/github (salvo shareRemoteApis).
 
 export interface ShareRequest {
+  /**
+   * 'lan' (por defecto): abre el listener de red + mDNS para personas de la red local.
+   * 'local': solo este equipo (sin listener de red); sirve para conectar agentes por MCP sin exponer nada.
+   */
+  network?: 'lan' | 'local'
+  /** Permitir que agentes MCP se unan sin aprobación manual (por defecto true en 'local'). */
+  autoApproveAgents?: boolean
   projectName: string
   hostName: string
   /** Puerto fijo opcional; por defecto 47123 o el siguiente libre. */
@@ -110,6 +123,19 @@ export type ControlMessage =
   | { t: 'participants'; list: Participant[] }
   | { t: 'ended' }
   | { t: 'error'; message: string }
+  /** Actividad de un participante (sobre todo agentes vía MCP): se muestra en el dock "Actividad". */
+  | { t: 'activity'; entry: ActivityEntry }
+
+export interface ActivityEntry {
+  id: string
+  at: string
+  actor: { id: string; name: string; color: string; kind: ClientKind }
+  /** Verbo corto: "creó la rama", "confirmó la versión", "aplicó normalización", "editó"… */
+  action: string
+  /** Detalle legible (nombre de rama, tabla, mensaje de versión…). */
+  detail?: string
+  branchId?: string
+}
 
 export const SYNC_MESSAGE = 0
 export const AWARENESS_MESSAGE = 1
@@ -134,7 +160,9 @@ export const MDNS_SERVICE_TYPE = 'dbtracker'
 //        ├─ 'relations' | 'triggers' | 'notes' | 'enums' | 'dataMigrations'   Y.Map<id, json>
 // La rama actual de cada persona NO está en el documento: va en awareness (cada uno puede estar en otra rama).
 
-export const Y_KEYS = { meta: 'meta', branches: 'branches', versions: 'versions', drafts: 'drafts' } as const
+export const Y_KEYS = { meta: 'meta', branches: 'branches', versions: 'versions', drafts: 'drafts', benchmarks: 'benchmarks' } as const
+//  └─ 'benchmarks' Y.Map<id, string>  JSON de QueryBenchmark (+ detalle). Lo escriben agentes MCP (db_benchmark)
+//                                     y la app los muestra en Informes junto a los del navegador.
 
 /** Estado de awareness que publica cada cliente. */
 export interface AwarenessState {

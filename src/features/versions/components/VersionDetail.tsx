@@ -7,7 +7,9 @@ import { CodeDiff, CodeEditor, sqlLanguageFor } from '@/components/code'
 import { CollapsibleSection } from '@/components/layout/collapsible-section'
 import { Separator } from '@/components/ui/separator'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { useIsMobile } from '@/hooks/use-mobile'
 import { diffSchemas } from '@/lib/diff'
+import { cn } from '@/lib/utils'
 import type { Project, Version } from '@/types/schema'
 
 import { branchVersions, fmtDate, fmtGap, fmtRelative, fmtShortDate, useLaneColor, orderedBranches, ts } from '../lib'
@@ -39,6 +41,9 @@ export function VersionDetail({
   onCompare,
 }: Props) {
   const laneColor = useLaneColor()
+  const isMobile = useIsMobile()
+  /** En móvil, botones de 44 px a todo el ancho. */
+  const act = isMobile ? 'h-11 w-full justify-center gap-1.5 text-sm' : 'gap-1.5'
   const branch = project.branches.find((b) => b.id === version.branchId)
   const parent = version.parentId ? project.versions.find((v) => v.id === version.parentId) : undefined
   const parentBranch = parent ? project.branches.find((b) => b.id === parent.branchId) : undefined
@@ -50,6 +55,7 @@ export function VersionDetail({
   const migration = useMemo(() => migrationFromParent(project, version), [project, version])
 
   const label = (v: Version) => `${project.branches.find((b) => b.id === v.branchId)?.name ?? '?'} · ${v.message}`
+  const shortLabel = (v: Version) => `${project.branches.find((b) => b.id === v.branchId)?.name ?? '?'} · ${fmtShortDate(v.createdAt)}`
   const [left, right] = compare
     ? ts(compare.createdAt) <= ts(version.createdAt)
       ? [compare, version]
@@ -97,16 +103,16 @@ export function VersionDetail({
         </dl>
       </header>
 
-      <div className="flex flex-wrap gap-2">
-        <Button size="sm" onClick={onOpenInEditor} className="gap-1.5">
+      <div className={isMobile ? 'grid gap-2' : 'flex flex-wrap gap-2'}>
+        <Button size="sm" onClick={onOpenInEditor} className={act}>
           <PencilRuler className="size-3.5" />
           Abrir en editor
         </Button>
-        <Button size="sm" variant="outline" onClick={onBranchFrom} className="gap-1.5">
+        <Button size="sm" variant="outline" onClick={onBranchFrom} className={act}>
           <GitBranchPlus className="size-3.5" />
           Crear rama desde aquí
         </Button>
-        <Button size="sm" variant={picking ? 'secondary' : 'outline'} onClick={onStartCompare} className="gap-1.5" aria-pressed={picking}>
+        <Button size="sm" variant={picking ? 'secondary' : 'outline'} onClick={onStartCompare} className={act} aria-pressed={picking}>
           <ArrowLeftRight className="size-3.5" />
           Comparar con…
         </Button>
@@ -116,10 +122,10 @@ export function VersionDetail({
         <div className="space-y-2">
           <div className="flex flex-wrap items-center gap-2">
             <Select value={compareId ?? ''} onValueChange={(v) => onCompare(v)}>
-              <SelectTrigger size="sm" className="w-full max-w-sm" aria-label="Versión con la que comparar">
+              <SelectTrigger size="sm" className={cn('w-full max-w-sm', isMobile && 'h-11 max-w-none data-[size=sm]:h-11')} aria-label="Versión con la que comparar">
                 <SelectValue placeholder="Elige una versión…" />
               </SelectTrigger>
-              <SelectContent position="popper" className="max-h-72">
+              <SelectContent position="popper" className={cn('max-h-72', isMobile && 'max-w-[calc(100vw-2rem)]')}>
                 {orderedBranches(project).map((b) => {
                   const vs = branchVersions(project, b.id).filter((v) => v.id !== version.id)
                   if (!vs.length) return null
@@ -138,13 +144,19 @@ export function VersionDetail({
               </SelectContent>
             </Select>
             {compare && (
-              <Button size="sm" variant="ghost" onClick={() => onCompare(null)} className="gap-1">
+              <Button size="sm" variant="ghost" onClick={() => onCompare(null)} className={isMobile ? 'h-11 gap-1' : 'gap-1'}>
                 <X className="size-3.5" />
                 Quitar comparación
               </Button>
             )}
           </div>
-          {picking && !compare && <p className="text-xs text-muted-foreground">También puedes hacer clic en otro punto del grafo.</p>}
+          {picking && !compare && (
+            <p className="text-xs text-muted-foreground">
+              {isMobile
+                ? 'También puedes cerrar esta hoja y tocar otra versión de la línea de tiempo.'
+                : 'También puedes hacer clic en otro punto del grafo.'}
+            </p>
+          )}
         </div>
       )}
 
@@ -154,7 +166,7 @@ export function VersionDetail({
         <>
           <CollapsibleSection
             title="Comparación lado a lado"
-            meta={`${label(left)} → ${label(right)}`}
+            meta={isMobile ? undefined : `${label(left)} → ${label(right)}`}
             storageKey="versions:compare"
             contentClassName="pt-2"
           >
@@ -165,9 +177,10 @@ export function VersionDetail({
               original={ddlOf(left.schema)}
               modified={ddlOf(right.schema)}
               language={sqlLanguageFor(project.dialect)}
-              originalLabel={label(left)}
-              modifiedLabel={label(right)}
-              height={480}
+              originalLabel={isMobile ? shortLabel(left) : label(left)}
+              modifiedLabel={isMobile ? shortLabel(right) : label(right)}
+              height={isMobile ? 380 : 480}
+              sideBySide={!isMobile}
             />
           </CollapsibleSection>
         </>
@@ -190,9 +203,11 @@ export function VersionDetail({
         contentClassName="pt-2"
       >
         <Tabs value={sqlTab} onValueChange={(v) => setSqlTab(v as 'ddl' | 'migration')}>
-          <TabsList>
-            <TabsTrigger value="ddl">DDL de la versión</TabsTrigger>
-            <TabsTrigger value="migration">Migración desde {parent ? 'su padre' : 'vacío'}</TabsTrigger>
+          <TabsList className={cn(isMobile && 'h-11 w-full [&>button]:min-w-0')}>
+            <TabsTrigger value="ddl">{isMobile ? 'DDL' : 'DDL de la versión'}</TabsTrigger>
+            <TabsTrigger value="migration">
+              {isMobile ? 'Migración' : <>Migración desde {parent ? 'su padre' : 'vacío'}</>}
+            </TabsTrigger>
           </TabsList>
           <TabsContent value="ddl" className="animate-in fade-in duration-200">
             <CodeEditor
@@ -203,7 +218,7 @@ export function VersionDetail({
               schema={version.schema}
               height="auto"
               minHeight={160}
-              maxHeight={520}
+              maxHeight={isMobile ? 360 : 520}
               statusBar
               ariaLabel={`DDL de la versión ${version.message}`}
             />
@@ -217,7 +232,7 @@ export function VersionDetail({
               schema={version.schema}
               height="auto"
               minHeight={120}
-              maxHeight={520}
+              maxHeight={isMobile ? 360 : 520}
               statusBar
               ariaLabel={`Migración de la versión ${version.message} desde su padre`}
             />

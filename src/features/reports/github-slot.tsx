@@ -5,8 +5,10 @@ import { Bar, BarChart, CartesianGrid, XAxis, YAxis } from 'recharts'
 import { CollapsibleSection } from '@/components/layout/collapsible-section'
 import { ChartContainer, ChartLegend, ChartLegendContent, ChartTooltip, ChartTooltipContent, type ChartConfig } from '@/components/ui/chart'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
+import { useIsMobile } from '@/hooks/use-mobile'
 import type { GithubBranchReport } from '@/types/report'
 
+import { TruncatedTick } from './chart-tick'
 import { fmtDay } from './format'
 
 export interface GithubReportSlotProps {
@@ -25,6 +27,7 @@ const config = {
 const n = (v: number) => v.toLocaleString('es')
 
 export function GithubReportSlot({ reports, loading, error, actions }: GithubReportSlotProps) {
+  const isMobile = useIsMobile()
   return (
     <CollapsibleSection
       title={<span className="text-base font-semibold text-foreground">Datos de GitHub</span>}
@@ -78,7 +81,15 @@ export function GithubReportSlot({ reports, loading, error, actions }: GithubRep
             <ChartContainer config={config} className="aspect-auto h-64 w-full">
               <BarChart data={reports} margin={{ left: 4, right: 8 }} barGap={2}>
                 <CartesianGrid vertical={false} />
-                <XAxis dataKey="branch" tickLine={false} axisLine={false} tickMargin={8} interval={0} fontSize={11} />
+                <XAxis
+                  dataKey="branch"
+                  tickLine={false}
+                  axisLine={false}
+                  tickMargin={8}
+                  interval={0}
+                  fontSize={11}
+                  {...(isMobile && { tick: <TruncatedTick axis="x" max={Math.max(4, Math.floor(36 / Math.max(1, reports.length)))} /> })}
+                />
                 <YAxis tickLine={false} axisLine={false} width={48} />
                 <ChartTooltip content={<ChartTooltipContent />} />
                 <ChartLegend content={<ChartLegendContent />} itemSorter={null} />

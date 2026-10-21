@@ -1,15 +1,16 @@
 // Pestaña de bases de datos remotas: conexiones, introspección, comparación, aplicar migración y rendimiento.
-import { Database, Loader2, Plus, ScanSearch } from 'lucide-react'
+import { ChevronDown, Database, Loader2, Plus, ScanSearch } from 'lucide-react'
 import { useMemo, useRef, useState } from 'react'
 import { toast } from 'sonner'
 
 import { CodeDiff, CodeEditor, sqlLanguageFor } from '@/components/code'
-import { CollapsiblePanel } from '@/components/layout/collapsible-panel'
+import { CollapsiblePanel, usePanelSheet } from '@/components/layout/collapsible-panel'
 import { FlowSteps } from '@/components/operation-flow'
 import { CollapsibleSection } from '@/components/layout/collapsible-section'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { useIsMobile } from '@/hooks/use-mobile'
 import { computeMigration, generateSQL } from '@/lib/exporters'
 import { uid } from '@/lib/id'
 import { cn } from '@/lib/utils'
@@ -77,11 +78,12 @@ function CompareSection({
     [remote.schema, targetSchema, connection.dialect],
   )
   const migFile = `migracion-${slugBranch(connection.name) || 'remoto'}.sql`
+  const isMobile = useIsMobile()
 
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-end gap-4">
-        <div className="min-w-64 flex-1 space-y-1.5">
+        <div className="min-w-64 flex-1 space-y-1.5 max-md:min-w-0">
           <Label htmlFor="cmp-target">Comparar la BD remota con</Label>
           <SourceSelect id="cmp-target" value={target} onChange={setTarget} />
         </div>
@@ -116,7 +118,8 @@ function CompareSection({
           language={sqlLanguageFor(connection.dialect)}
           originalLabel={`${connection.database} (remoto)`}
           modifiedLabel={label}
-          height={440}
+          height={isMobile ? 360 : 440}
+          sideBySide={!isMobile}
         />
       </div>
       <div key={`${target}:${remote.durationMs}`} className={fadeIn}>
@@ -127,7 +130,7 @@ function CompareSection({
           language={sqlLanguageFor(connection.dialect)}
           height="auto"
           minHeight={160}
-          maxHeight={520}
+          maxHeight={isMobile ? 360 : 520}
           actions={
             <FileActions content={migration.sql} filename={migFile} mime="text/sql" note={migration.empty ? 'sin diferencias' : `${s.statements} sentencias`}>
               <Button size="xs" disabled={migration.empty} onClick={() => onUseForApply(migration.sql)}>
@@ -211,10 +214,10 @@ function RemoteActions({ connection }: { connection: RemoteConnection }) {
             {connection.dialect === 'postgresql' && (
               <div className="space-y-1.5">
                 <Label htmlFor="rm-schema">Esquema</Label>
-                <Input id="rm-schema" value={schemaName} onChange={(e) => setSchemaName(e.target.value)} className="w-40 font-mono" />
+                <Input id="rm-schema" value={schemaName} onChange={(e) => setSchemaName(e.target.value)} className="w-40 font-mono max-md:h-11" />
               </div>
             )}
-            <Button onClick={introspect} disabled={loading} variant={remote ? 'outline' : 'default'}>
+            <Button onClick={introspect} disabled={loading} variant={remote ? 'outline' : 'default'} className="max-md:h-11">
               {loading ? <Loader2 className="animate-spin" /> : <ScanSearch />}
               {remote ? 'Volver a leer' : 'Importar esquema (introspección)'}
             </Button>
@@ -242,7 +245,11 @@ function RemoteActions({ connection }: { connection: RemoteConnection }) {
               )}
               <div className="max-w-2xl space-y-4">
                 <ImportTargetForm idPrefix="rm" value={target} onChange={setTarget} />
-                <Button onClick={doImport} disabled={importing || (!remote.schema.tables.length && !remote.schema.views.length)}>
+                <Button
+                  onClick={doImport}
+                  disabled={importing || (!remote.schema.tables.length && !remote.schema.views.length)}
+                  className="max-md:h-11 max-md:w-full"
+                >
                   Importar al proyecto
                 </Button>
               </div>
@@ -313,19 +320,51 @@ export function RemoteTab() {
   const [creating, setCreating] = useState<RemoteConnection | null>(connections.length ? null : newConnection())
 
   const current = creating ?? connections.find((c) => c.id === selected) ?? null
+  const isMobile = useIsMobile()
+  const sheet = usePanelSheet('io-connections')
 
   return (
-    <div className="-ml-2 flex min-h-[32rem] items-stretch">
-      <CollapsiblePanel side="left" width={248} title="Conexiones" storageKey="io-connections" shortcut="[" className="rounded-l-md">
-        <div className="space-y-2 px-2 pb-4">
+    <div className="-ml-2 flex min-h-[32rem] items-stretch max-md:ml-0 max-md:min-h-0 max-md:flex-col">
+      {isMobile && (
+        // Móvil: las conexiones van en una hoja; este botón muestra la actual y la abre.
+        <button
+          type="button"
+          onClick={sheet.toggle}
+          aria-expanded={sheet.open}
+          className="mb-4 flex min-h-12 w-full items-center gap-2 rounded-md border px-3 py-2 text-left transition-colors hover:bg-muted/60"
+        >
+          <Database className="size-4 shrink-0 text-muted-foreground" />
+          <span className="min-w-0 flex-1">
+            <span className="block text-xs text-muted-foreground">Conexión</span>
+            <span className="block truncate text-sm font-medium">
+              {creating ? 'Nueva conexión…' : (current?.name ?? 'Sin conexiones')}
+            </span>
+          </span>
+          <span className="shrink-0 text-xs text-muted-foreground tabular-nums">{connections.length}</span>
+          <ChevronDown className="size-4 shrink-0 text-muted-foreground" />
+        </button>
+      )}
+      <CollapsiblePanel
+        side="left"
+        width={248}
+        title="Conexiones"
+        storageKey="io-connections"
+        shortcut="["
+        className="rounded-l-md"
+        mobileTrigger={false}
+        mobileSide="bottom"
+      >
+        <div className="space-y-2 px-2 pb-4 max-md:pt-2">
           <div className="flex items-center justify-between pl-1">
-            <h3 className="text-sm font-medium">Conexiones</h3>
+            <h3 className="text-sm font-medium max-md:sr-only">Conexiones</h3>
             <Button
               size="sm"
               variant="ghost"
+              className="max-md:h-11 max-md:w-full max-md:border"
               onClick={() => {
                 setCreating(newConnection())
                 setSelected(null)
+                sheet.setOpen(false)
               }}
             >
               <Plus />
@@ -343,6 +382,7 @@ export function RemoteTab() {
                 onSelect={() => {
                   setSelected(c.id)
                   setCreating(null)
+                  sheet.setOpen(false)
                 }}
               />
             ))}
@@ -350,11 +390,11 @@ export function RemoteTab() {
               <li className={cn('rounded-md bg-brand/10 px-2 py-1.5 text-sm text-brand', enterItem)}>Nueva conexión…</li>
             )}
           </ul>
-          <p className="px-1 pt-2 text-xs text-muted-foreground">Pulsa [ para plegar este panel.</p>
+          <p className="px-1 pt-2 text-xs text-muted-foreground max-md:hidden">Pulsa [ para plegar este panel.</p>
         </div>
       </CollapsiblePanel>
 
-      <div className="min-w-0 flex-1 space-y-10 pl-8 transition-[padding] duration-300">
+      <div className="min-w-0 flex-1 space-y-10 pl-8 transition-[padding] duration-300 max-md:pl-0">
         {current ? (
           <div key={current.id} className={cn('space-y-10', fadeIn)}>
             <section>
@@ -406,7 +446,7 @@ function ConnectionItem({
         onClick={onSelect}
         aria-current={active ? 'true' : undefined}
         className={cn(
-          'flex w-full items-start gap-2 rounded-md px-2 py-1.5 text-left transition-colors duration-150',
+          'flex w-full items-start gap-2 rounded-md px-2 py-1.5 text-left transition-colors duration-150 max-md:min-h-12 max-md:py-2.5',
           active ? 'bg-brand/10' : 'hover:bg-muted/60',
         )}
       >

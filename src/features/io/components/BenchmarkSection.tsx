@@ -121,13 +121,13 @@ export function BenchmarkSection({ connection, schema, schemaOrigin }: { connect
       </div>
 
       <div className="flex flex-wrap items-end gap-4">
-        <Button variant="outline" onClick={suggest} disabled={!!busy}>
+        <Button className="max-md:h-11" variant="outline" onClick={suggest} disabled={!!busy}>
           {busy === 'suggest' ? <Loader2 className="animate-spin" /> : <Sparkles />}
           Sugerir consultas
         </Button>
         <div className="space-y-1.5">
           <Label htmlFor="bm-runs">Repeticiones</Label>
-          <Input id="bm-runs" type="number" min={1} max={50} value={runs} onChange={(e) => setRuns(Math.min(50, Math.max(1, Number(e.target.value) || 1)))} className="w-24" />
+          <Input id="bm-runs" type="number" min={1} max={50} value={runs} onChange={(e) => setRuns(Math.min(50, Math.max(1, Number(e.target.value) || 1)))} className="max-md:h-11 w-24" />
         </div>
         <label className="flex items-center gap-2 pb-2 text-sm">
           <Checkbox checked={explain} onCheckedChange={(v) => setExplain(v === true)} />
@@ -170,7 +170,7 @@ export function BenchmarkSection({ connection, schema, schemaOrigin }: { connect
       <details className="text-sm">
         <summary className="cursor-pointer text-muted-foreground">Añadir una consulta propia</summary>
         <div className="mt-3 space-y-2">
-          <Input placeholder="Etiqueta" value={custom.label} onChange={(e) => setCustom((c) => ({ ...c, label: e.target.value }))} />
+          <Input className="max-md:h-11" placeholder="Etiqueta" value={custom.label} onChange={(e) => setCustom((c) => ({ ...c, label: e.target.value }))} />
           <CodeEditor
             value={custom.query}
             onChange={(v) => setCustom((c) => ({ ...c, query: v }))}
@@ -182,7 +182,7 @@ export function BenchmarkSection({ connection, schema, schemaOrigin }: { connect
             maxHeight={260}
             ariaLabel="Consulta propia"
           />
-          <Button size="sm" variant="outline" onClick={addCustom} disabled={!custom.query.trim()}>
+          <Button className="max-md:h-11" size="sm" variant="outline" onClick={addCustom} disabled={!custom.query.trim()}>
             <Plus />
             Añadir
           </Button>
@@ -190,7 +190,7 @@ export function BenchmarkSection({ connection, schema, schemaOrigin }: { connect
       </details>
 
       <div className="flex items-center gap-3">
-        <Button onClick={run} disabled={!selectedCount || !!busy}>
+        <Button className="max-md:h-11" onClick={run} disabled={!selectedCount || !!busy}>
           {busy === 'run' ? <Loader2 className="animate-spin" /> : <Gauge />}
           Medir {selectedCount ? `${selectedCount} consulta(s)` : ''}
         </Button>

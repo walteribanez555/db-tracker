@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Label } from '@/components/ui/label'
+import { cn } from '@/lib/utils'
 import { useProjectStore } from '@/store/project'
 
 import type { DateRange } from '../lib'
@@ -25,11 +26,12 @@ interface Props {
   latencyWeight?: number
   variant?: 'outline' | 'default' | 'ghost'
   size?: 'sm' | 'default'
+  className?: string
 }
 
 let running = false
 
-export function ReportPdfButton({ range = { from: null, to: null }, latencyWeight = 0.6, variant = 'outline', size = 'sm' }: Props) {
+export function ReportPdfButton({ range = { from: null, to: null }, latencyWeight = 0.6, variant = 'outline', size = 'sm', className }: Props) {
   const [open, setOpen] = useState(false)
   const [busy, setBusy] = useState(false)
   const hasVersions = useProjectStore((s) => s.project.versions.length > 0)
@@ -52,7 +54,7 @@ export function ReportPdfButton({ range = { from: null, to: null }, latencyWeigh
 
   return (
     <>
-      <Button size={size} variant={variant} className="gap-1.5" disabled={busy || !hasVersions} onClick={() => setOpen(true)}>
+      <Button size={size} variant={variant} className={cn('gap-1.5', className)} disabled={busy || !hasVersions} onClick={() => setOpen(true)}>
         {busy ? <Loader2 className="size-3.5 animate-spin motion-reduce:animate-none" /> : <FileDown className="size-3.5" />}
         {busy ? 'Generando informe…' : 'Descargar informe PDF'}
       </Button>

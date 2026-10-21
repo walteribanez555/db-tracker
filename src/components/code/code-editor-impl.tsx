@@ -208,13 +208,13 @@ export function CodeDiffImpl({
   return (
     <div className={cn('overflow-hidden rounded-md border bg-card', className)}>
       <div className="grid h-9 grid-cols-2 border-b bg-muted/40 text-xs">
-        <span className="flex items-center gap-2 border-r px-3 font-mono text-muted-foreground">
-          <span className="size-2 rounded-full bg-destructive/70" />
-          {originalLabel}
+        <span className="flex min-w-0 items-center gap-2 border-r px-3 font-mono text-muted-foreground" title={originalLabel}>
+          <span className="size-2 shrink-0 rounded-full bg-destructive/70" />
+          <span className="truncate">{originalLabel}</span>
         </span>
-        <span className="flex items-center gap-2 px-3 font-mono text-muted-foreground">
-          <span className="size-2 rounded-full bg-emerald-500/80" />
-          {modifiedLabel}
+        <span className="flex min-w-0 items-center gap-2 px-3 font-mono text-muted-foreground" title={modifiedLabel}>
+          <span className="size-2 shrink-0 rounded-full bg-emerald-500/80" />
+          <span className="truncate">{modifiedLabel}</span>
         </span>
       </div>
       {ready ? (

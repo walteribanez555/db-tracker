@@ -37,7 +37,8 @@ function InspectorBody() {
 
 export function Inspector() {
   return (
-    <CollapsiblePanel side="right" width={320} title="Inspector" storageKey="editor-inspector" shortcut="]">
+    // En móvil la selección se muestra en la hoja inferior del lienzo (MobileInspectorSheet).
+    <CollapsiblePanel side="right" width={320} title="Inspector" storageKey="editor-inspector" shortcut="]" mobile="hidden">
       <InspectorBody />
     </CollapsiblePanel>
   )

@@ -28,10 +28,25 @@ const readStored = (): Theme => {
 
 const resolve = (theme: Theme): Resolved => (theme === 'system' ? (media().matches ? 'dark' : 'light') : theme)
 
-const apply = (resolved: Resolved) => {
+const BG = { light: '#ffffff', dark: '#0e1621' } as const
+
+const apply = (resolved: Resolved, theme?: Theme) => {
   const root = document.documentElement
   root.classList.toggle('dark', resolved === 'dark')
   root.style.colorScheme = resolved
+  // Escritorio: la ventana nativa (barra de título y fondo) sigue al tema de la app.
+  window.dbTracker?.setTheme?.(theme ?? resolved, BG[resolved])
+}
+
+/**
+ * Desactiva las transiciones CSS mientras cambia el tema: sin esto, cada elemento anima su color
+ * por su cuenta dentro del círculo y el cambio se ve "sucio" (sobre todo en Electron).
+ */
+const withoutTransitions = (run: () => void) => {
+  const root = document.documentElement
+  root.classList.add('theme-switching')
+  run()
+  return () => requestAnimationFrame(() => requestAnimationFrame(() => root.classList.remove('theme-switching')))
 }
 
 const prefersReducedMotion = () => window.matchMedia('(prefers-reduced-motion: reduce)').matches
@@ -40,7 +55,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const [theme, setThemeState] = useState<Theme>(readStored)
   const [resolved, setResolved] = useState<Resolved>(() => resolve(readStored()))
 
-  useEffect(() => apply(resolved), [resolved])
+  useEffect(() => apply(resolved, theme), [resolved, theme])
 
   useEffect(() => {
     if (theme !== 'system') return
@@ -55,7 +70,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     const commit = () => {
       setThemeState(next)
       setResolved(nextResolved)
-      apply(nextResolved)
+      apply(nextResolved, next)
       try {
         localStorage.setItem(STORAGE_KEY, next)
       } catch {
@@ -64,14 +79,18 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     }
 
     if (!origin || !document.startViewTransition || prefersReducedMotion() || nextResolved === resolve(readStored())) {
-      commit()
+      withoutTransitions(commit)()
       return
     }
 
     // Transición estilo Telegram: el tema nuevo se revela en un círculo que crece desde el botón.
     const { x, y } = origin
     const radius = Math.hypot(Math.max(x, innerWidth - x), Math.max(y, innerHeight - y))
-    const transition = document.startViewTransition(() => flushSync(commit))
+    let restore = () => {}
+    const transition = document.startViewTransition(() => {
+      restore = withoutTransitions(() => flushSync(commit))
+    })
+    void transition.finished.finally(() => restore())
     void transition.ready.then(() => {
       document.documentElement.animate(
         { clipPath: [`circle(0px at ${x}px ${y}px)`, `circle(${radius}px at ${x}px ${y}px)`] },

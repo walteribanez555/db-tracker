@@ -1,7 +1,34 @@
+/**
+ * Panel lateral plegable (escritorio) que en móvil (< 768 px) pasa a una hoja (Sheet).
+ *
+ * ── API móvil ────────────────────────────────────────────────────────────────
+ * `<CollapsiblePanel mobile="sheet" | "hidden" | "inline" mobileTrigger mobileSide …>`
+ *   - `mobile="sheet"` (por defecto): en móvil el panel NO ocupa espacio en línea; su contenido se
+ *     muestra en un Sheet lateral (lado = `mobileSide`, por defecto `side`; admite 'bottom').
+ *   - `mobile="hidden"`: en móvil no se pinta nada (la sección muestra el contenido a su manera).
+ *   - `mobile="inline"`: en móvil el contenido se pinta en línea a todo el ancho, sin riel ni
+ *     anchura fija (útil para apilarlo en columna).
+ *   - `mobileTrigger` (por defecto `true`): con `mobile="sheet"`, pinta un botón flotante discreto
+ *     (44 px) en el borde de la pantalla para abrir la hoja, con `title` como aria-label.
+ *     Pásalo a `false` si la sección pone su propio botón.
+ *
+ * Abrir la hoja desde fuera (mismo `storageKey` que el panel):
+ *   const { open, setOpen, toggle } = usePanelSheet('editor-inspector')
+ *   <PanelSheetTrigger storageKey="editor-inspector" title="Inspector" />   // botón listo (44 px)
+ *   <PanelSheetTrigger storageKey="…" title="…" asChild><Button>…</Button></PanelSheetTrigger>
+ * El estado vive en memoria (no se persiste) y es compartido por todos los que usen la misma clave.
+ *
+ * En escritorio el comportamiento es idéntico al de siempre (riel plegable con persistencia).
+ */
 import { PanelLeftClose, PanelLeftOpen, PanelRightClose, PanelRightOpen } from 'lucide-react'
+import { Slot } from 'radix-ui'
 import { useEffect, useState } from 'react'
 
+import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from '@/components/ui/sheet'
+import { useIsMobile } from '@/hooks/use-mobile'
 import { cn } from '@/lib/utils'
+
+import { setPanelSheetOpen, usePanelSheet } from './panel-sheet'
 
 const read = (key: string, fallback: boolean) => {
   try {
@@ -10,6 +37,41 @@ const read = (key: string, fallback: boolean) => {
   } catch {
     return fallback
   }
+}
+
+export { usePanelSheet } from './panel-sheet'
+
+export interface PanelSheetTriggerProps extends Omit<React.ComponentProps<'button'>, 'title'> {
+  storageKey: string
+  /** Título del panel: se usa como aria-label ("Abrir <title>"). */
+  title: string
+  /** Pasa el comportamiento a tu propio botón (p. ej. un `<Button>`). */
+  asChild?: boolean
+}
+
+/** Botón que abre la hoja móvil del panel con ese `storageKey`. Sin estilos de posición: colócalo tú. */
+export function PanelSheetTrigger({ storageKey, title, asChild, className, children, onClick, ...props }: PanelSheetTriggerProps) {
+  const { open, setOpen } = usePanelSheet(storageKey)
+  const Comp = asChild ? Slot.Root : 'button'
+  return (
+    <Comp
+      type={asChild ? undefined : 'button'}
+      aria-label={`Abrir ${title}`}
+      aria-expanded={open}
+      onClick={(e: React.MouseEvent<HTMLButtonElement>) => {
+        onClick?.(e)
+        if (!e.defaultPrevented) setOpen(true)
+      }}
+      className={cn(
+        !asChild &&
+          'inline-flex size-11 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground',
+        className,
+      )}
+      {...props}
+    >
+      {children ?? (!asChild && <PanelLeftOpen className="size-5" />)}
+    </Comp>
+  )
 }
 
 export interface CollapsiblePanelProps {
@@ -23,11 +85,90 @@ export interface CollapsiblePanelProps {
   /** Atajo opcional (p. ej. '[' o ']') para plegar/desplegar. */
   shortcut?: string
   className?: string
+  /** Comportamiento en móvil (< 768 px). Por defecto 'sheet'. */
+  mobile?: 'sheet' | 'hidden' | 'inline'
+  /** Con `mobile="sheet"`: botón flotante en el borde para abrir la hoja. Por defecto `true`. */
+  mobileTrigger?: boolean
+  /** Lado de la hoja móvil. Por defecto el mismo que `side`. */
+  mobileSide?: 'left' | 'right' | 'bottom'
+  /** Clases extra para el contenido de la hoja móvil. */
+  mobileSheetClassName?: string
   children: React.ReactNode
 }
 
 /** Panel lateral que se pliega a un riel estrecho con animación de ancho. */
-export function CollapsiblePanel({
+export function CollapsiblePanel(props: CollapsiblePanelProps) {
+  const isMobile = useIsMobile()
+  const { mobile = 'sheet' } = props
+  if (!isMobile) return <DesktopPanel {...props} />
+  if (mobile === 'hidden') return null
+  if (mobile === 'inline')
+    return (
+      <section aria-label={props.title} className={cn('flex w-full min-w-0 flex-col bg-background', props.className)}>
+        {props.children}
+      </section>
+    )
+  return <MobileSheetPanel {...props} />
+}
+
+function MobileSheetPanel({
+  side,
+  title,
+  storageKey,
+  mobileTrigger = true,
+  mobileSide,
+  mobileSheetClassName,
+  children,
+}: CollapsiblePanelProps) {
+  const { open, setOpen } = usePanelSheet(storageKey)
+  const sheetSide = mobileSide ?? side
+  const OpenIcon = side === 'left' ? PanelLeftOpen : PanelRightOpen
+
+  // Al desmontar la sección (cambio de ruta) la hoja no debe quedar abierta.
+  useEffect(() => () => setPanelSheetOpen(storageKey, false), [storageKey])
+
+  return (
+    <>
+      {mobileTrigger && (
+        <PanelSheetTrigger
+          storageKey={storageKey}
+          title={title}
+          className={cn(
+            'fixed top-1/2 z-30 size-11 -translate-y-1/2 border bg-background/90 shadow-sm backdrop-blur-sm',
+            side === 'left' ? 'left-0 rounded-l-none border-l-0' : 'right-0 rounded-r-none border-r-0',
+          )}
+        >
+          <OpenIcon className="size-5" />
+        </PanelSheetTrigger>
+      )}
+      <Sheet open={open} onOpenChange={setOpen}>
+        <SheetContent
+          side={sheetSide}
+          // En el teléfono no enfocar el primer campo (p. ej. el buscador): sacaría el teclado cada vez.
+          onOpenAutoFocus={(e) => e.preventDefault()}
+          className={cn(
+            'gap-0 p-0',
+            sheetSide === 'bottom'
+              ? 'max-h-[85svh] rounded-t-xl pb-[env(safe-area-inset-bottom)]'
+              : 'w-[min(88vw,380px)] pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)]',
+            mobileSheetClassName,
+          )}
+        >
+          {sheetSide === 'bottom' && (
+            <div aria-hidden className="mx-auto mt-2 h-1 w-10 shrink-0 rounded-full bg-muted-foreground/30" />
+          )}
+          <SheetHeader className="shrink-0 border-b px-4 py-3 pr-14">
+            <SheetTitle>{title}</SheetTitle>
+            <SheetDescription className="sr-only">Panel {title}</SheetDescription>
+          </SheetHeader>
+          <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">{children}</div>
+        </SheetContent>
+      </Sheet>
+    </>
+  )
+}
+
+function DesktopPanel({
   side,
   width,
   title,

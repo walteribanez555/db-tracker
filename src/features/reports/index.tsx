@@ -10,15 +10,17 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { CollapsibleSection } from '@/components/layout/collapsible-section'
 import { useGithubReport } from '@/features/github/useGithubReport'
 import { LoadSampleButton } from '@/features/versions'
+import { useIsMobile } from '@/hooks/use-mobile'
 import { STAGGER_LIST, useLaneColor } from '@/features/versions/lib'
 import { cn } from '@/lib/utils'
 import { useProjectStore } from '@/store/project'
 
+import { TruncatedTick } from './chart-tick'
 import { fmtDay, fmtNum, fmtShort } from './format'
 import { GithubReportSlot } from './github-slot'
 import { ReportPdfButton } from './pdf/ReportPdfButton'
 import { buildFlowRows, estimatedBenchmarks, fmtMs, jumpSeries, recommend, sourceLabel, type DateRange, type FlowRow } from './lib'
-import { useBenchmarkStore } from './store'
+import { useReportBenchmarks } from './store'
 
 export { GithubReportSlot, type GithubReportSlotProps } from './github-slot'
 export { useBenchmarkStore, type BenchmarkState } from './store'
@@ -75,11 +77,13 @@ const fromInput = (s: string, end = false) => {
 
 export function ReportsView() {
   const project = useProjectStore((s) => s.project)
-  const remote = useBenchmarkStore((s) => s.benchmarks)
+  // Locales + las que los agentes guardan en el documento compartido (db_benchmark).
+  const remote = useReportBenchmarks()
 
   const [preset, setPreset] = useState<Preset>('todo')
   const [range, setRange] = useState<DateRange>({ from: null, to: null })
   const [weight, setWeight] = useState(60)
+  const isMobile = useIsMobile()
 
   const applyPreset = (p: Preset) => {
     setPreset(p)
@@ -121,7 +125,7 @@ export function ReportsView() {
 
   return (
     <div className="h-full overflow-y-auto">
-      <div className="mx-auto max-w-6xl space-y-8 px-6 py-6">
+      <div className="mx-auto max-w-6xl space-y-8 px-6 py-6 max-md:space-y-6 max-md:px-4 max-md:py-4">
         {/* Cabecera + filtros */}
         <header className="space-y-4 border-b pb-5">
           <div>
@@ -130,11 +134,11 @@ export function ReportsView() {
               {project.name} · compara cada rama por tiempo de respuesta, agilidad y saltos estructurales.
             </p>
           </div>
-          <div className="flex flex-wrap items-end gap-x-6 gap-y-3">
+          <div className="flex flex-wrap items-end gap-x-6 gap-y-3 max-md:flex-col max-md:items-stretch">
             <div className="grid gap-1.5">
               <Label htmlFor="rng-preset">Periodo</Label>
               <Select value={preset} onValueChange={(v) => applyPreset(v as Preset)}>
-                <SelectTrigger id="rng-preset" size="sm" className="w-44">
+                <SelectTrigger id="rng-preset" size="sm" className="w-44 max-md:w-full max-md:data-[size=sm]:h-11">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -151,7 +155,7 @@ export function ReportsView() {
               <Input
                 id="rng-from"
                 type="date"
-                className="h-7 w-40"
+                className="h-7 w-40 max-md:h-11 max-md:w-full"
                 value={toInput(range.from)}
                 onChange={(e) => {
                   setPreset('custom')
@@ -164,7 +168,7 @@ export function ReportsView() {
               <Input
                 id="rng-to"
                 type="date"
-                className="h-7 w-40"
+                className="h-7 w-40 max-md:h-11 max-md:w-full"
                 value={toInput(range.to)}
                 onChange={(e) => {
                   setPreset('custom')
@@ -184,12 +188,12 @@ export function ReportsView() {
                 step={5}
                 value={weight}
                 onChange={(e) => setWeight(Number(e.target.value))}
-                className="h-7 w-56 accent-brand"
+                className="h-7 w-56 accent-brand max-md:h-11 max-md:w-full"
                 aria-valuetext={`${weight}% latencia, ${100 - weight}% saltos`}
               />
             </div>
-            <div className="ml-auto flex flex-col items-end gap-2">
-              <ReportPdfButton range={range} latencyWeight={weight / 100} />
+            <div className="ml-auto flex flex-col items-end gap-2 max-md:ml-0 max-md:items-start">
+              {!isMobile && <ReportPdfButton range={range} latencyWeight={weight / 100} />}
               <p className="text-xs text-muted-foreground">
                 Latencia:{' '}
                 {remoteCount > 0
@@ -201,7 +205,7 @@ export function ReportsView() {
         </header>
 
         {/* Cifras clave en una fila con divisores */}
-        <dl className="grid grid-cols-2 gap-y-4 border-b pb-6 md:grid-cols-4 md:divide-x">
+        <dl className="grid grid-cols-2 gap-y-4 border-b pb-6 max-md:grid-cols-1 max-md:gap-y-0 max-md:divide-y max-md:pb-0 md:grid-cols-4 md:divide-x">
           <Figure label="Versiones en el periodo" value={String(versionsInRange)} detail={`${active.length} de ${rows.length} ramas con actividad`} />
           <Figure
             label="Menor latencia p95"
@@ -307,6 +311,12 @@ export function ReportsView() {
         <div className="pb-6">
           <GithubReport />
         </div>
+
+        {isMobile && (
+          <div className="border-t pt-4 pb-2">
+            <ReportPdfButton range={range} latencyWeight={weight / 100} size="default" className="h-11 w-full" />
+          </div>
+        )}
       </div>
     </div>
   )
@@ -314,18 +324,26 @@ export function ReportsView() {
 
 function Figure({ label, value, detail, tag }: { label: string; value: string; detail: React.ReactNode; tag?: string }) {
   return (
-    <div className="min-w-0 px-0 md:px-5 md:first:pl-0">
-      <dt className="text-xs text-muted-foreground">{label}</dt>
-      <dd key={value} className="mt-1 animate-in text-2xl font-semibold tabular-nums duration-300 fade-in">
+    // En móvil: fila con etiqueta y detalle a la izquierda y la cifra a la derecha (divisores en el <dl>).
+    <div className="min-w-0 px-0 max-md:grid max-md:grid-cols-[minmax(0,1fr)_auto] max-md:gap-x-4 max-md:py-3 md:px-5 md:first:pl-0">
+      <dt className="text-xs text-muted-foreground max-md:col-start-1 max-md:row-start-1 max-md:text-sm max-md:text-foreground">{label}</dt>
+      <dd
+        key={value}
+        className="mt-1 animate-in text-2xl font-semibold tabular-nums duration-300 fade-in max-md:col-start-2 max-md:row-span-2 max-md:row-start-1 max-md:mt-0 max-md:self-center max-md:text-right max-md:text-xl"
+      >
         {value}
-        {tag && <span className="ml-1.5 text-xs font-normal text-muted-foreground">{tag}</span>}
+        {tag && <span className="ml-1.5 text-xs font-normal text-muted-foreground max-md:block max-md:ml-0">{tag}</span>}
       </dd>
-      <dd className="mt-0.5 truncate text-xs text-muted-foreground">{detail}</dd>
+      <dd className="mt-0.5 truncate text-xs text-muted-foreground max-md:col-start-1 max-md:row-start-2">{detail}</dd>
     </div>
   )
 }
 
+/** Eje de categorías (ramas): en móvil, más estrecho y con nombres truncados (el completo va en <title>). */
+const categoryAxis = (mobile: boolean) => (mobile ? { width: 96, tick: <TruncatedTick axis="y" max={14} /> } : { width: 150 })
+
 function LatencyChart({ rows }: { rows: FlowRow[] }) {
+  const isMobile = useIsMobile()
   const mixed = rows.some((r) => r.latencySource === 'remote') && rows.some((r) => r.latencySource === 'estimate')
   const data = rows
     .filter((r) => r.avgQueryMs !== null)
@@ -338,7 +356,7 @@ function LatencyChart({ rows }: { rows: FlowRow[] }) {
           <BarChart data={data} layout="vertical" margin={{ left: 0, right: 16 }} barGap={2}>
             <CartesianGrid horizontal={false} />
             <XAxis type="number" tickLine={false} axisLine={false} unit=" ms" fontSize={11} />
-            <YAxis type="category" dataKey="name" tickLine={false} axisLine={false} width={150} fontSize={11} />
+            <YAxis type="category" dataKey="name" tickLine={false} axisLine={false} fontSize={11} {...categoryAxis(isMobile)} />
             <ChartTooltip content={<ChartTooltipContent />} />
             <ChartLegend content={<ChartLegendContent />} itemSorter={null} />
             <Bar dataKey="avg" fill="var(--color-avg)" radius={[0, 4, 4, 0]} maxBarSize={16} {...barAnim(0)} />
@@ -354,6 +372,7 @@ function LatencyChart({ rows }: { rows: FlowRow[] }) {
 
 function BranchBars({ rows, dataKey, unit, label }: { rows: FlowRow[]; dataKey: 'avgHoursBetweenVersions' | 'versionsPerDay'; unit: string; label: string }) {
   const laneColor = useLaneColor()
+  const isMobile = useIsMobile()
   const config = { [dataKey]: { label } } satisfies ChartConfig
   const data = rows.map((r) => ({ name: r.branchName, [dataKey]: r[dataKey], color: laneColor(r.color) }))
   return (
@@ -361,7 +380,7 @@ function BranchBars({ rows, dataKey, unit, label }: { rows: FlowRow[]; dataKey: 
       <BarChart data={data} layout="vertical" margin={{ left: 0, right: 16 }}>
         <CartesianGrid horizontal={false} />
         <XAxis type="number" tickLine={false} axisLine={false} unit={unit} fontSize={11} />
-        <YAxis type="category" dataKey="name" tickLine={false} axisLine={false} width={150} fontSize={11} />
+        <YAxis type="category" dataKey="name" tickLine={false} axisLine={false} fontSize={11} {...categoryAxis(isMobile)} />
         <ChartTooltip content={<ChartTooltipContent hideIndicator />} />
         <Bar dataKey={dataKey} radius={[0, 4, 4, 0]} maxBarSize={18} {...barAnim(0)}>
           {data.map((d) => (

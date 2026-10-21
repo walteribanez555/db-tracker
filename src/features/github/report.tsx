@@ -22,12 +22,12 @@ export function ReportSection({ report }: { report: UseGithubReport }) {
       contentClassName="pt-3"
       actions={
         <div className="flex items-center gap-1">
-          <Button asChild variant="ghost" size="sm">
+          <Button className="max-md:h-11" asChild variant="ghost" size="sm">
             <a href={githubUrls.network(link.owner, link.repo)} target="_blank" rel="noreferrer">
               Grafo de red <ExternalLink />
             </a>
           </Button>
-          <Button variant="ghost" size="sm" onClick={refresh} disabled={loading}>
+          <Button className="max-md:h-11" variant="ghost" size="sm" onClick={refresh} disabled={loading}>
             {loading ? <Loader2 className="animate-spin" /> : <RefreshCw />}
             Actualizar
           </Button>

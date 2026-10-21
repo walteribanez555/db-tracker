@@ -1,4 +1,4 @@
-import { Check, GitBranch, Sparkles, Wand2 } from 'lucide-react'
+import { ArrowLeft, Check, ChevronRight, GitBranch, Sparkles, Wand2 } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { Link, useNavigate } from 'react-router'
 import { toast } from 'sonner'
@@ -8,6 +8,7 @@ import { FlowSteps, useOperationStore, type Operation } from '@/components/opera
 import { CollapsibleSection } from '@/components/layout/collapsible-section'
 import { Button } from '@/components/ui/button'
 import { relationName } from '@/features/triggers/lib/graph'
+import { useIsMobile } from '@/hooks/use-mobile'
 import { cn } from '@/lib/utils'
 import { useCurrentBranch, useProjectStore } from '@/store/project'
 import type { Schema } from '@/types/schema'
@@ -60,6 +61,9 @@ export function NormalizationView() {
   const activeOp = useOperationStore((s) => (active ? s.operations.find((o) => o.id === active.opId) : undefined))
   const busy = activeOp?.status === 'running'
   const navigate = useNavigate()
+  const isMobile = useIsMobile()
+  /** Móvil: lista de hallazgos a pantalla completa o detalle del elegido (con «Volver»). */
+  const [mobileDetail, setMobileDetail] = useState(false)
 
   const start = (finding: Finding, mode: { kind: 'draft' } | { kind: 'branch'; form: BranchDraft }) => {
     if (busy) return
@@ -89,25 +93,94 @@ export function NormalizationView() {
 
   // Si el hallazgo seleccionado desaparece (p. ej. tras aplicarlo), se pasa al que ocupaba su lugar.
   const selected = findings.find((f) => f.id === picked?.id) ?? findings[Math.min(picked?.index ?? 0, findings.length - 1)]
-  const onSelect = (id: string) => setPicked({ id, index: findings.findIndex((f) => f.id === id) })
+  const onSelect = (id: string) => {
+    setPicked({ id, index: findings.findIndex((f) => f.id === id) })
+    if (isMobile) setMobileDetail(true)
+  }
 
   if (!draft.tables.length)
     return (
-      <div className="mx-auto flex h-full max-w-md flex-col items-center justify-center gap-3 p-6 text-center">
+      <div className="mx-auto flex h-full max-w-md flex-col items-center justify-center gap-3 p-6 text-center max-md:px-4">
         <Sparkles className="size-8 text-muted-foreground" aria-hidden />
         <h1 className="text-lg font-medium">Asesor de normalización</h1>
         <p className="text-sm text-muted-foreground">
           Analiza el esquema y explica, paso a paso, qué le falta para cumplir 1FN, 2FN, 3FN y BCNF. Crea tablas en el Diagrama o prueba con un
           esquema de ejemplo lleno de problemas típicos.
         </p>
-        <div className="flex gap-2">
-          <Button variant="outline" asChild>
+        <div className="flex gap-2 max-md:w-full max-md:flex-col">
+          <Button variant="outline" asChild className="max-md:h-11">
             <Link to="/editor">Ir al Diagrama</Link>
           </Button>
-          <Button onClick={() => replaceDraft(createSampleSchema())}>Cargar ejemplo</Button>
+          <Button onClick={() => replaceDraft(createSampleSchema())} className="max-md:h-11">
+            Cargar ejemplo
+          </Button>
         </div>
       </div>
     )
+
+  const lastOp = activeOp && active && active.findingId !== selected?.id && (
+    <section
+      className="border-b px-6 py-3 animate-in fade-in slide-in-from-top-1 duration-200 motion-reduce:animate-none max-md:px-4"
+      aria-label="Última corrección aplicada"
+    >
+      <div className="flex items-center gap-2 text-xs text-muted-foreground">
+        <span>{busy ? 'Aplicando' : activeOp.status === 'error' ? 'Falló' : 'Aplicado'}:</span>
+        <span className="truncate text-foreground">{active.title}</span>
+        <Button variant="ghost" size="xs" className="ml-auto max-md:h-11 max-md:px-3" onClick={() => setActive(null)} disabled={busy}>
+          Ocultar
+        </Button>
+      </div>
+      <FlowSteps operation={activeOp} />
+    </section>
+  )
+
+  const noFindings = (
+    <div className="flex h-full flex-col items-center justify-center gap-2 p-6 text-center">
+      <Check className="size-8 text-emerald-600" aria-hidden />
+      <p className="font-medium">Sin hallazgos</p>
+      <p className="max-w-sm text-sm text-muted-foreground">El esquema alcanza BCNF según las heurísticas y sigue las buenas prácticas revisadas.</p>
+    </div>
+  )
+
+  if (isMobile) {
+    const showDetail = mobileDetail && !!selected
+    return (
+      <div className="flex h-full min-h-0 flex-col">
+        {showDetail ? (
+          <div key="detail" className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
+            <div className="sticky top-0 z-10 flex h-12 items-center border-b bg-background/95 px-2 backdrop-blur-sm">
+              <Button variant="ghost" className="h-11 gap-1.5 px-3" onClick={() => setMobileDetail(false)}>
+                <ArrowLeft className="size-4" />
+                Volver
+              </Button>
+              <span className="ml-auto truncate pr-2 text-xs text-muted-foreground tabular-nums">
+                {findings.findIndex((f) => f.id === selected.id) + 1} de {findings.length}
+              </span>
+            </div>
+            {lastOp}
+            <FindingDetail
+              key={selected.id}
+              finding={selected}
+              schema={draft}
+              operation={active?.findingId === selected.id ? activeOp : undefined}
+              busy={busy}
+              onApply={(mode) => start(selected, mode)}
+            />
+          </div>
+        ) : (
+          <div key="list" className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
+            <ScoreHeader status={status} findings={findings} />
+            {lastOp}
+            {findings.length ? (
+              <FindingList findings={findings} schema={draft} selectedId={picked ? selected?.id : undefined} onSelect={onSelect} />
+            ) : (
+              noFindings
+            )}
+          </div>
+        )}
+      </div>
+    )
+  }
 
   return (
     <div className="flex h-full min-h-0 flex-col">
@@ -115,21 +188,7 @@ export function NormalizationView() {
       <div className="flex min-h-0 flex-1">
         <FindingList findings={findings} schema={draft} selectedId={selected?.id} onSelect={onSelect} />
         <div className="min-w-0 flex-1 overflow-y-auto">
-          {activeOp && active && active.findingId !== selected?.id && (
-            <section
-              className="border-b px-6 py-3 animate-in fade-in slide-in-from-top-1 duration-200 motion-reduce:animate-none"
-              aria-label="Última corrección aplicada"
-            >
-              <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                <span>{busy ? 'Aplicando' : activeOp.status === 'error' ? 'Falló' : 'Aplicado'}:</span>
-                <span className="truncate text-foreground">{active.title}</span>
-                <Button variant="ghost" size="xs" className="ml-auto" onClick={() => setActive(null)} disabled={busy}>
-                  Ocultar
-                </Button>
-              </div>
-              <FlowSteps operation={activeOp} />
-            </section>
-          )}
+          {lastOp}
           {selected ? (
             <FindingDetail
               key={selected.id}
@@ -140,11 +199,7 @@ export function NormalizationView() {
               onApply={(mode) => start(selected, mode)}
             />
           ) : (
-            <div className="flex h-full flex-col items-center justify-center gap-2 p-6 text-center">
-              <Check className="size-8 text-emerald-600" aria-hidden />
-              <p className="font-medium">Sin hallazgos</p>
-              <p className="max-w-sm text-sm text-muted-foreground">El esquema alcanza BCNF según las heurísticas y sigue las buenas prácticas revisadas.</p>
-            </div>
+            noFindings
           )}
         </div>
       </div>
@@ -158,7 +213,7 @@ function ScoreHeader({ status, findings }: { status: LevelStatus[]; findings: Fi
   const count = (sev: Severity) => findings.filter((f) => f.severity === sev).length
 
   return (
-    <header className="flex flex-wrap items-end justify-between gap-x-8 gap-y-4 border-b px-6 py-4">
+    <header className="flex flex-wrap items-end justify-between gap-x-8 gap-y-4 border-b px-6 py-4 max-md:px-4">
       <div>
         <h1 className="text-lg font-medium">Asesor de normalización</h1>
         <p className="text-sm text-muted-foreground">
@@ -215,7 +270,7 @@ function FindingList({
 }) {
   const groups = LEVELS.map((level) => ({ level, items: findings.filter((f) => f.level === level) })).filter((g) => g.items.length)
   return (
-    <CollapsiblePanel side="left" width={380} title="Hallazgos" storageKey="normalizacion-hallazgos" shortcut="[">
+    <CollapsiblePanel side="left" width={380} title="Hallazgos" storageKey="normalizacion-hallazgos" shortcut="[" mobile="inline">
       <nav className="pb-4" aria-label="Hallazgos">
         {groups.map((g) => (
           <CollapsibleSection
@@ -244,14 +299,18 @@ function FindingList({
                     aria-current={f.id === selectedId ? 'true' : undefined}
                     className={cn(
                       'relative w-full px-4 py-2.5 text-left transition-colors outline-none hover:bg-muted/60 focus-visible:bg-muted/60 focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:ring-inset',
+                      'max-md:flex max-md:min-h-13 max-md:items-center max-md:gap-2 max-md:py-3',
                       'before:absolute before:inset-y-0 before:left-0 before:w-0.5 before:bg-brand before:opacity-0 before:transition-opacity',
                       f.id === selectedId && 'bg-brand/10 before:opacity-100 hover:bg-brand/10',
                     )}
                   >
-                    <span className="block text-sm leading-snug">{f.title}</span>
-                    <span className="mt-0.5 block text-xs text-muted-foreground">
-                      {relationName(schema, f.tableId)} · {RULE_LABELS[f.rule]} · <span className={SEVERITY_CLS[f.severity]}>severidad {f.severity}</span>
+                    <span className="block min-w-0 max-md:flex-1">
+                      <span className="block text-sm leading-snug">{f.title}</span>
+                      <span className="mt-0.5 block text-xs text-muted-foreground">
+                        {relationName(schema, f.tableId)} · {RULE_LABELS[f.rule]} · <span className={SEVERITY_CLS[f.severity]}>severidad {f.severity}</span>
+                      </span>
                     </span>
+                    <ChevronRight aria-hidden className="hidden size-4 shrink-0 text-muted-foreground/60 max-md:block" />
                   </button>
                 </li>
               ))}
@@ -314,7 +373,7 @@ function FindingDetail({
   }
 
   return (
-    <article className="max-w-4xl space-y-6 p-6 animate-in fade-in slide-in-from-bottom-1 duration-200 ease-out motion-reduce:animate-none">
+    <article className="max-w-4xl space-y-6 p-6 max-md:p-4 animate-in fade-in slide-in-from-bottom-1 duration-200 ease-out motion-reduce:animate-none">
       <header className="space-y-1.5">
         <p className="text-xs text-muted-foreground">
           {finding.level === 'buenas-prácticas' ? 'Buenas prácticas' : `${finding.level} · ${LEVEL_TITLE[finding.level]}`}
@@ -373,12 +432,12 @@ function FindingDetail({
               </div>
             </section>
           )}
-          <footer className="flex flex-wrap items-center gap-3 border-t pt-4">
-            <Button onClick={applyInDraft} disabled={busy}>
+          <footer className="flex flex-wrap items-center gap-3 border-t pt-4 max-md:flex-col max-md:items-stretch">
+            <Button onClick={applyInDraft} disabled={busy} className="max-md:h-11">
               <Wand2 />
               Aplicar en el borrador
             </Button>
-            <Button variant="outline" onClick={openBranchDialog} disabled={busy}>
+            <Button variant="outline" onClick={openBranchDialog} disabled={busy} className="max-md:h-11">
               <GitBranch />
               Aplicar en un flujo nuevo
             </Button>

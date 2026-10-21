@@ -10,6 +10,7 @@ export function ThemeToggle({ className }: { className?: string }) {
   return (
     <button
       type="button"
+      data-theme-toggle
       onClick={(e) => {
         const r = e.currentTarget.getBoundingClientRect()
         toggle({ x: r.left + r.width / 2, y: r.top + r.height / 2 })

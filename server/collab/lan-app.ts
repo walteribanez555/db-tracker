@@ -34,6 +34,10 @@ export function createLanApp(manager: CollabManager) {
 
   app.get('/sync/:sessionId', syncRoute(manager, 'lan'))
   app.all('/sync/*', (c) => c.body(null, 404))
+  // El servidor MCP (agentes) solo existe en el listener local: aquí nunca se monta ni se hace proxy.
+  app.all('/mcp', (c) => c.json({ ok: false, error: 'No encontrado.' }, 404))
+  app.all('/mcp/*', (c) => c.json({ ok: false, error: 'No encontrado.' }, 404))
+  app.all('/.well-known/*', (c) => c.json({ ok: false, error: 'No encontrado.' }, 404))
 
   const staticDir = manager.options.staticDir
   if (staticDir) {

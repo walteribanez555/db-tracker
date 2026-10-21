@@ -27,7 +27,7 @@ interface Props {
 function Row({ p, isMe, children }: { p: Participant; isMe: boolean; children?: React.ReactNode }) {
   return (
     <li className="flex min-h-11 items-center gap-3 py-2 animate-in fade-in duration-200 motion-reduce:animate-none">
-      <PeerAvatar name={p.name} color={p.color} className="size-7 text-[11px]" />
+      <PeerAvatar name={p.name} color={p.color} kind={p.kind} className="size-7 text-[11px]" />
       <div className="min-w-0 flex-1">
         <div className="truncate text-sm font-medium">
           {p.name}
