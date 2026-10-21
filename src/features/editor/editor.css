@@ -1,0 +1,91 @@
+.db-editor .react-flow {
+  --xy-background-color: var(--canvas);
+  --xy-edge-stroke: var(--muted-foreground);
+  --xy-connectionline-stroke: var(--brand);
+  --xy-controls-button-background-color: var(--background);
+  --xy-controls-button-background-color-hover: var(--muted);
+  --xy-controls-button-color: var(--foreground);
+  --xy-controls-button-color-hover: var(--foreground);
+  --xy-controls-button-border-color: var(--border);
+  --xy-controls-box-shadow: none;
+  --xy-minimap-background-color: var(--background);
+  --xy-minimap-mask-background-color: color-mix(in oklch, var(--muted) 70%, transparent);
+  --xy-node-boxshadow-selected: none;
+}
+
+.db-editor .react-flow__controls {
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: calc(var(--radius) * 0.8);
+  box-shadow: 0 1px 2px rgb(0 0 0 / 0.05);
+}
+
+.db-editor .react-flow__minimap {
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: calc(var(--radius) * 0.8);
+  box-shadow: 0 1px 2px rgb(0 0 0 / 0.05);
+}
+
+.db-editor .react-flow__node {
+  border-radius: calc(var(--radius) * 0.8);
+}
+
+.db-editor[data-tool='hand'] .react-flow__pane,
+.db-editor[data-tool='hand'] .react-flow__node {
+  cursor: grab;
+}
+
+.db-editor[data-tool='hand'] .react-flow__pane.dragging {
+  cursor: grabbing;
+}
+
+[data-editor-canvas][data-exporting] .react-flow__minimap,
+[data-editor-canvas][data-exporting] .react-flow__controls,
+[data-editor-canvas][data-exporting] .react-flow__panel {
+  display: none;
+}
+
+.db-editor .react-flow__attribution {
+  background: transparent;
+}
+
+.db-editor .react-flow__attribution a {
+  color: var(--muted-foreground);
+}
+
+/* Cambios en vivo: destello breve al editar un elemento. */
+@keyframes db-change-flash {
+  0% {
+    background-color: color-mix(in oklch, var(--brand) 22%, transparent);
+    box-shadow: 0 0 0 2px color-mix(in oklch, var(--brand) 70%, transparent);
+  }
+  100% {
+    background-color: transparent;
+    box-shadow: 0 0 0 2px transparent;
+  }
+}
+
+@keyframes db-edge-flash {
+  0% {
+    stroke-opacity: 0.55;
+  }
+  100% {
+    stroke-opacity: 0;
+  }
+}
+
+.db-change-flash {
+  animation: db-change-flash 1.2s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+
+.db-edge-flash {
+  animation: db-edge-flash 1.2s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .db-change-flash,
+  .db-edge-flash {
+    animation-duration: 1ms;
+  }
+}

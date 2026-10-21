@@ -1,0 +1,19 @@
+appId: com.dbtracker.app
+productName: DB Tracker
+directories:
+  output: release
+files:
+  - dist/**
+  - dist-electron/**
+  - package.json
+# Todo está empaquetado con Vite/esbuild: no hace falta copiar node_modules.
+includeSubNodeModules: false
+asar: true
+mac:
+  category: public.app-category.developer-tools
+  target: [dmg, zip]
+win:
+  target: [nsis]
+linux:
+  target: [AppImage, deb]
+  category: Development

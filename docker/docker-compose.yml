@@ -1,0 +1,24 @@
+# Base de datos de ejemplo para probar DB Tracker en modo web.
+#   docker compose -f docker/docker-compose.yml up -d
+#   Conexión: localhost:5432 · BD tienda · usuario dbtracker · contraseña dbtracker_local
+services:
+  postgres:
+    image: postgres:16
+    container_name: dbtracker-pg
+    environment:
+      POSTGRES_DB: tienda
+      POSTGRES_USER: dbtracker
+      POSTGRES_PASSWORD: dbtracker_local
+    ports:
+      - "127.0.0.1:5432:5432"
+    volumes:
+      - ./postgres/init:/docker-entrypoint-initdb.d:ro
+      - dbtracker-pg-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U dbtracker -d tienda"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+
+volumes:
+  dbtracker-pg-data:
